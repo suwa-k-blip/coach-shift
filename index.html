@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>コーチ出勤可能コマ共有アプリ (管理者機能付き)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .holiday-bg {
+      background-color: #fef2f2;
+      background-image: repeating-linear-gradient(45deg, #fee2e2 0, #fee2e2 10px, #fef2f2 10px, #fef2f2 20px);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-8">
+  <script>
+    window.onerror = function() { return true; };
+  </script>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between py-2.5 gap-2">
+        
+        <!-- App Title -->
+        <div class="flex items-center gap-2.5 flex-shrink-0">
+          <div id="header-logo-bg" class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-100 flex-shrink-0 transition-colors">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base sm:text-lg font-bold text-slate-800 tracking-tight leading-tight whitespace-nowrap">コーチ出勤可能コマ共有アプリ</h1>
+              <span id="admin-mode-badge" class="hidden text-[10px] font-extrabold bg-amber-500 text-white px-2 py-0.5 rounded-full shadow-sm">管理者モード</span>
+            </div>
+            <p class="text-[11px] text-slate-500 hidden sm:block">2講〜6講 出勤可能スケジュール & シフト管理</p>
+          </div>
+        </div>
+
+        <!-- Mode Switcher & Current User Controls -->
+        <div class="flex items-center flex-wrap gap-2">
+          
+          <!-- Admin Mode Toggle Button -->
+          <button id="btn-toggle-admin" onclick="toggleAdminMode()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition shadow-sm bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+            <span id="admin-toggle-text">管理者モードへ</span>
+          </button>
+
+          <!-- My Coach Identity -->
+          <div class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span class="text-xs text-indigo-900 font-medium whitespace-nowrap">操作者:</span>
+            <span id="current-coach-display" class="text-xs font-bold text-indigo-700 whitespace-nowrap">未設定</span>
+            <button onclick="openCoachSelectModal()" class="text-[11px] underline text-indigo-600 hover:text-indigo-800 ml-0.5 whitespace-nowrap">変更</button>
+          </div>
+
+          <!-- Month Selector Buttons -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button id="btn-prev-month" onclick="prevMonth()" class="p-1 hover:bg-white rounded transition text-slate-600" title="前月">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <span id="current-month-text" class="text-xs font-bold text-slate-700 px-2 min-w-[85px] text-center whitespace-nowrap">2026年 12月</span>
+            <button id="btn-next-month" onclick="nextMonth()" class="p-1 hover:bg-white rounded transition text-slate-600" title="次月">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button id="btn-month-12" onclick="setMonth(2026, 11)" class="px-2 py-0.5 text-xs font-semibold rounded transition bg-indigo-600 text-white shadow-sm">12月</button>
+            <button id="btn-month-1" onclick="setMonth(2027, 0)" class="px-2 py-0.5 text-xs font-semibold rounded transition text-slate-600 hover:text-slate-900">1月</button>
+          </div>
+        </div>
+
+        <!-- Quick Action Buttons -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button onclick="exportToCSV()" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>CSV出力</span>
+          </button>
+          <button onclick="openAddShiftModal()" class="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>出勤コマ追加</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body Content -->
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4">
+    <div class="flex flex-col md:flex-row gap-4 items-start">
+      
+      <!-- Sidebar -->
+      <aside class="w-full md:w-56 lg:w-64 flex-shrink-0 space-y-3">
+        
+        <!-- Admin Dashboard Panel -->
+        <div id="admin-panel" class="hidden bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-xl p-3 shadow-md space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 font-bold text-xs">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              <span>管理者専用メニュー</span>
+            </div>
+          </div>
+          <p class="text-[10px] text-amber-100 leading-tight">
+            全コーチのシフト編集・削除権限が有効です。集計データのダウンロードや休校日の設定が可能です。
+          </p>
+          <div class="grid grid-cols-3 gap-1 pt-1">
+            <button onclick="openMatrixModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] py-1.5 px-1 rounded-lg transition flex items-center justify-center gap-0.5">
+              <i data-lucide="table" class="w-3 h-3"></i>
+              <span>集計表</span>
+            </button>
+            <button onclick="openHolidayModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] py-1.5 px-1 rounded-lg transition flex items-center justify-center gap-0.5">
+              <i data-lucide="calendar-off" class="w-3 h-3"></i>
+              <span>休校日</span>
+            </button>
+            <button onclick="exportToCSV()" class="bg-white text-amber-900 font-bold text-[10px] py-1.5 px-1 rounded-lg transition flex items-center justify-center gap-0.5 shadow-sm">
+              <i data-lucide="file-spreadsheet" class="w-3 h-3"></i>
+              <span>CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Coach Filter Card -->
+        <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span>コーチ一覧 (<span id="coach-count">20</span>名)</span>
+            </h2>
+            <div class="flex gap-1.5 text-[11px]">
+              <button onclick="toggleAllCoaches(true)" class="text-indigo-600 hover:underline font-medium">全選</button>
+              <span class="text-slate-300">|</span>
+              <button onclick="toggleAllCoaches(false)" class="text-slate-500 hover:underline font-medium">解除</button>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="relative mb-2">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2"></i>
+            <input type="text" id="coach-search" oninput="filterCoachList()" placeholder="名前を検索..." class="w-full text-xs pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </div>
+
+          <!-- Coach Checklist -->
+          <div id="coach-checklist" class="space-y-1 max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Bulk Action Card -->
+        <div class="bg-gradient-to-br from-indigo-50 to-slate-50 rounded-xl border border-indigo-100 p-3 shadow-sm">
+          <h3 class="text-xs font-bold text-indigo-950 flex items-center gap-1 mb-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span>一括コマ登録・リセット</span>
+          </h3>
+          <p class="text-[10px] text-slate-600 mb-2 leading-tight">
+            冬期全期間（12月〜1月）の指定曜日・コマに一括登録・全消去ができます。
+          </p>
+          <button onclick="openBulkModal()" class="w-full bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs py-1.5 rounded-lg transition shadow-sm flex items-center justify-center gap-1">
+            <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+            <span>一括コマ登録を開く</span>
+          </button>
+        </div>
+
+        <!-- Timetable Card (Corrected standard period times) -->
+        <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm text-xs space-y-1.5">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-slate-700 flex items-center gap-1 text-[11px]">
+              <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span>講義時間割 (冬期講習)</span>
+            </h4>
+            <button id="btn-edit-timetable" onclick="openTimetableModal()" class="text-[10px] text-indigo-600 hover:underline font-semibold hidden">編集</button>
+          </div>
+          <ul id="timetable-list-display" class="text-slate-600 text-[11px] space-y-1 font-mono">
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>2講:</span><span class="font-bold text-slate-800">14:00〜15:20</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>3講:</span><span class="font-bold text-slate-800">15:30〜16:50</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>4講:</span><span class="font-bold text-slate-800">17:10〜18:30</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>5講:</span><span class="font-bold text-slate-800">18:40〜20:00</span></li>
+            <li class="flex justify-between"><span>6講:</span><span class="font-bold text-slate-800">20:10〜21:30</span></li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Main View Area (Calendar / View Switcher) -->
+      <section class="flex-1 w-full min-w-0">
+        
+        <!-- View Switcher Tabs -->
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300">
+            <button id="tab-calendar" onclick="switchMainView('calendar')" class="px-3 py-1 text-xs font-bold rounded-md bg-white text-indigo-700 shadow-sm transition">
+              カレンダー表示
+            </button>
+            <button id="tab-matrix" onclick="switchMainView('matrix')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+              <i data-lucide="layout-grid" class="w-3 h-3"></i>
+              <span>全コマ配置マトリクス</span>
+            </button>
+          </div>
+
+          <!-- Shortage Legend / Status -->
+          <div class="text-[11px] text-slate-500 hidden sm:flex items-center gap-3">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500"></span> 3名以上 (安心)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> 1〜2名 (やや不足)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-rose-500"></span> 0名 (要手配)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-rose-200 border border-rose-300"></span> 休校日</span>
+          </div>
+        </div>
+
+        <!-- 1. Calendar View Block -->
+        <div id="view-calendar" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <!-- Calendar Header -->
+          <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-bold text-slate-600 py-2">
+            <div class="text-red-500">日</div>
+            <div>月</div>
+            <div>火</div>
+            <div>水</div>
+            <div>木</div>
+            <div>金</div>
+            <div class="text-blue-500">土</div>
+          </div>
+
+          <!-- Calendar Grid Cells -->
+          <div id="calendar-grid" class="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-200 bg-slate-100 min-w-[320px]">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- 2. Matrix View Block (Admin / Manager overview) -->
+        <div id="view-matrix" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-3 overflow-x-auto custom-scrollbar">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-slate-800">全コーチコマ配置マトリクス</h3>
+              <p class="text-[11px] text-slate-500">各日・各講の出勤可能な全コーチ名を一覧で比較確認できます。</p>
+            </div>
+            <button onclick="exportToCSV()" class="px-2.5 py-1 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition flex items-center gap-1">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>CSVで保存</span>
+            </button>
+          </div>
+          <div id="matrix-table-container" class="min-w-[650px]">
+            <!-- Dynamically generated table -->
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modals -->
+
+  <!-- 1. Add Shift Modal -->
+  <div id="modal-add-shift" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-600"></i>
+          <span>出勤コマを追加する</span>
+        </h3>
+        <button onclick="closeModal('modal-add-shift')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-add-shift" onsubmit="handleAddShift(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">対象コーチ名</label>
+          <select id="add-shift-coach" required class="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">日付</label>
+          <input type="date" id="add-shift-date" required min="2026-12-01" max="2027-01-31" class="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">出勤可能コマ (複数選択可)</label>
+          <div class="grid grid-cols-5 gap-1.5">
+            <label class="flex flex-col items-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500">
+              <input type="checkbox" name="add-period" value="2" class="sr-only">
+              <span class="text-xs font-bold text-slate-800">2講</span>
+              <span class="text-[9px] text-slate-400">14:00</span>
+            </label>
+            <label class="flex flex-col items-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500">
+              <input type="checkbox" name="add-period" value="3" class="sr-only">
+              <span class="text-xs font-bold text-slate-800">3講</span>
+              <span class="text-[9px] text-slate-400">15:30</span>
+            </label>
+            <label class="flex flex-col items-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500">
+              <input type="checkbox" name="add-period" value="4" class="sr-only">
+              <span class="text-xs font-bold text-slate-800">4講</span>
+              <span class="text-[9px] text-slate-400">17:10</span>
+            </label>
+            <label class="flex flex-col items-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500">
+              <input type="checkbox" name="add-period" value="5" class="sr-only">
+              <span class="text-xs font-bold text-slate-800">5講</span>
+              <span class="text-[9px] text-slate-400">18:40</span>
+            </label>
+            <label class="flex flex-col items-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500">
+              <input type="checkbox" name="add-period" value="6" class="sr-only">
+              <span class="text-xs font-bold text-slate-800">6講</span>
+              <span class="text-[9px] text-slate-400">20:10</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modal-add-shift')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">キャンセル</button>
+          <button type="submit" class="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">追加を保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Day Detail Modal -->
+  <div id="modal-day-detail" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-5 border border-slate-100">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="day-detail-title" class="text-sm sm:text-base font-bold text-slate-800">2026年12月1日 (火) 出勤詳細</h3>
+            <span id="day-holiday-badge" class="hidden text-[10px] bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full">休校日</span>
+          </div>
+          <p id="day-detail-subtitle" class="text-[11px] text-slate-500 mt-0.5">※あなたの名前以外の予定は保護されています。</p>
+        </div>
+        <button onclick="closeModal('modal-day-detail')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Holiday Toggle Bar (Admin) -->
+      <div id="holiday-toggle-bar" class="hidden mb-3 p-2 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between">
+        <span class="text-xs font-bold text-rose-800 flex items-center gap-1">
+          <i data-lucide="calendar-off" class="w-3.5 h-3.5"></i>
+          <span>この日を「休校日」に設定しますか？</span>
+        </span>
+        <button id="btn-toggle-holiday-day" onclick="toggleCurrentDayHoliday()" class="px-2.5 py-1 text-xs font-bold rounded-lg transition shadow-sm bg-rose-600 text-white hover:bg-rose-700">
+          休校日に切り替え
+        </button>
+      </div>
+
+      <!-- Periods Breakdown List -->
+      <div id="day-detail-content" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+        <!-- Dynamically populated -->
+      </div>
+
+      <div class="mt-4 pt-2 border-t border-slate-100 flex justify-between items-center">
+        <button id="btn-add-for-this-day" onclick="openAddShiftForCurrentDay()" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-bold">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+          <span>この日にコマを追加</span>
+        </button>
+        <button onclick="closeModal('modal-day-detail')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Coach Identity Selection Modal -->
+  <div id="modal-select-coach" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 text-center border border-slate-100">
+      <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2">
+        <i data-lucide="user-check" class="w-5 h-5"></i>
+      </div>
+      <h3 class="text-sm font-bold text-slate-800 mb-1">あなたの名前を選択してください</h3>
+      <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">選択した名前が「操作者」として設定され、自分以外の予定誤削除を防止します。</p>
+
+      <select id="select-my-coach-dropdown" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl mb-3 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500">
+        <!-- Populated -->
+      </select>
+
+      <button onclick="saveMyCoachSelection()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+        設定を保存する
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. Bulk Register Modal -->
+  <div id="modal-bulk" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="calendar-plus" class="w-4 h-4 text-indigo-600"></i>
+          <span>一括コマ登録・全リセット</span>
+        </h3>
+        <button onclick="closeModal('modal-bulk')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-bulk" onsubmit="handleBulkRegister(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">対象期間</label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <label class="flex items-center justify-center gap-1 p-1.5 border border-slate-200 rounded-lg text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
+              <input type="radio" name="bulk-range" value="all" checked class="sr-only">
+              <span>12月〜1月(全期間)</span>
+            </label>
+            <label class="flex items-center justify-center gap-1 p-1.5 border border-slate-200 rounded-lg text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
+              <input type="radio" name="bulk-range" value="12" class="sr-only">
+              <span>12月のみ</span>
+            </label>
+            <label class="flex items-center justify-center gap-1 p-1.5 border border-slate-200 rounded-lg text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
+              <input type="radio" name="bulk-range" value="1" class="sr-only">
+              <span>1月のみ</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">対象コーチ</label>
+          <input type="text" id="bulk-coach-name-display" disabled class="w-full text-xs p-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-slate-700">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">対象曜日</label>
+          <div class="grid grid-cols-7 gap-1">
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="0" class="sr-only">日
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="1" class="sr-only">月
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="2" class="sr-only">火
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="3" class="sr-only">水
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="4" class="sr-only">木
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="5" class="sr-only">金
+            </label>
+            <label class="flex flex-col items-center py-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-day" value="6" class="sr-only">土
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">対象コマ (複数選択可)</label>
+          <div class="grid grid-cols-5 gap-1">
+            <label class="flex items-center justify-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-period" value="2" class="sr-only">2講
+            </label>
+            <label class="flex items-center justify-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-period" value="3" class="sr-only">3講
+            </label>
+            <label class="flex items-center justify-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-period" value="4" class="sr-only">4講
+            </label>
+            <label class="flex items-center justify-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-period" value="5" class="sr-only">5講
+            </label>
+            <label class="flex items-center justify-center p-1.5 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 text-xs font-bold text-slate-700">
+              <input type="checkbox" name="bulk-period" value="6" class="sr-only">6講
+            </label>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <button type="button" onclick="handleResetOwnShifts()" class="px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition border border-red-200 flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>自分の登録を全削除</span>
+          </button>
+          
+          <div class="flex gap-1.5">
+            <button type="button" onclick="closeModal('modal-bulk')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">キャンセル</button>
+            <button type="submit" class="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">一括登録を実行</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. Holiday Settings Modal (Admin) -->
+  <div id="modal-holiday" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="calendar-off" class="w-4 h-4 text-rose-600"></i>
+          <span>休校日 (休日) の設定</span>
+        </h3>
+        <button onclick="closeModal('modal-holiday')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600 mb-3">
+        休校日に設定した日はカレンダー上に「休校日」と赤く表示され、休講日として登録されます。
+      </p>
+
+      <div class="space-y-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <label class="block text-xs font-bold text-slate-700">クイック設定プリセット</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="applyPresetHolidays('yearEnd')" class="px-2.5 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm">
+            <i data-lucide="sparkles" class="w-3 h-3"></i>
+            <span>年末年始 (12/31〜1/3)</span>
+          </button>
+          <button type="button" onclick="applyPresetHolidays('sundays')" class="px-2.5 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 shadow-sm">
+            <i data-lucide="sun" class="w-3 h-3"></i>
+            <span>全日曜日を休校指定</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Current Holiday List -->
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">現在設定されている休校日</label>
+        <div id="holiday-list-container" class="max-h-40 overflow-y-auto custom-scrollbar space-y-1 p-2 bg-slate-50 rounded-xl border border-slate-200">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="mt-4 pt-2 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('modal-holiday')" class="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">完了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Timetable Edit Modal (Admin) -->
+  <div id="modal-edit-timetable" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="clock" class="w-4 h-4 text-indigo-600"></i>
+          <span>時間割の設定</span>
+        </h3>
+        <button onclick="closeModal('modal-edit-timetable')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-10 text-xs font-bold">2講:</span>
+          <input type="text" id="tt-time-2" value="14:00〜15:20" class="flex-1 text-xs p-1.5 border border-slate-200 rounded font-mono">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-10 text-xs font-bold">3講:</span>
+          <input type="text" id="tt-time-3" value="15:30〜16:50" class="flex-1 text-xs p-1.5 border border-slate-200 rounded font-mono">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-10 text-xs font-bold">4講:</span>
+          <input type="text" id="tt-time-4" value="17:10〜18:30" class="flex-1 text-xs p-1.5 border border-slate-200 rounded font-mono">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-10 text-xs font-bold">5講:</span>
+          <input type="text" id="tt-time-5" value="18:40〜20:00" class="flex-1 text-xs p-1.5 border border-slate-200 rounded font-mono">
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-10 text-xs font-bold">6講:</span>
+          <input type="text" id="tt-time-6" value="20:10〜21:30" class="flex-1 text-xs p-1.5 border border-slate-200 rounded font-mono">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('modal-edit-timetable')" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">キャンセル</button>
+        <button onclick="saveTimetableChanges()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white text-xs font-medium px-3.5 py-2.5 rounded-xl shadow-xl z-50 transition transform translate-y-20 opacity-0 flex items-center gap-2">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">メッセージ</span>
+  </div>
+
+  <!-- Script Logic -->
+  <script>
+    (function() {
+      // 20 Coaches Master List (Full Name)
+      const COACH_NAMES = [
+        '佐藤 健太', '鈴木 翔太', '高橋 蓮', '田中 拓海', '伊藤 陸', 
+        '渡辺 陽翔', '山本 颯太', '中村 悠真', '小林 樹', '加藤 悠人', 
+        '吉田 湊', '山田 大翔', '佐々木 葵', '山口 駿', '松本 輝', 
+        '井上 巧', '木村 翼', '林 太陽', '斎藤 涼', '清水 颯'
+      ];
+
+      const PERIODS = [2, 3, 4, 5, 6];
+
+      // Standard Timetable Times
+      let timetableTimes = {
+        2: '14:00〜15:20',
+        3: '15:30〜16:50',
+        4: '17:10〜18:30',
+        5: '18:40〜20:00',
+        6: '20:10〜21:30'
+      };
+
+      function getStorage(key, fallback) {
+        try {
+          const val = localStorage.getItem(key);
+          return val ? JSON.parse(val) : fallback;
+        } catch(e) {
+          return fallback;
+        }
+      }
+
+      function setStorage(key, val) {
+        try {
+          localStorage.setItem(key, JSON.stringify(val));
+        } catch(e) {}
+      }
+
+      // App State
+      let currentYear = 2026;
+      let currentMonth = 11; // 0-indexed (11 = Dec 2026)
+      let selectedCoaches = getStorage('selectedCoaches', COACH_NAMES.slice());
+      let myCoach = getStorage('myCoach', '佐藤 健太');
+      let isAdminMode = getStorage('isAdminMode', false);
+      let currentView = 'calendar'; // 'calendar' | 'matrix'
+
+      // Holidays array (YYYY-MM-DD)
+      let holidays = getStorage('coachHolidays', ['2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);
+
+      // Shifts Data
+      let shifts = getStorage('coachShiftsData', generateInitialShifts());
+
+      function generateInitialShifts() {
+        const sample = [];
+        for (let d = 1; d <= 31; d++) {
+          const dateStr = `2026-12-${String(d).padStart(2, '0')}`;
+          const dayOfWeek = new Date(2026, 11, d).getDay();
+          if (dayOfWeek !== 0 && !holidays.includes(dateStr)) { // Skip Sundays & holidays
+            COACH_NAMES.slice(0, 14).forEach((coach, idx) => {
+              if ((d + idx) % 3 === 0) sample.push({ date: dateStr, period: 2, coach });
+              if ((d + idx) % 4 === 0) sample.push({ date: dateStr, period: 3, coach });
+              if ((d + idx) % 5 === 0) sample.push({ date: dateStr, period: 4, coach });
+              if ((d + idx) % 2 === 0) sample.push({ date: dateStr, period: 5, coach });
+            });
+          }
+        }
+        return sample;
+      }
+
+      function refreshIcons() {
+        try {
+          if (window.lucide && typeof lucide.createIcons === 'function') {
+            lucide.createIcons();
+          }
+        } catch(e) {}
+      }
+
+      window.addEventListener('DOMContentLoaded', initApp);
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(initApp, 50);
+      }
+
+      function initApp() {
+        renderAdminUI();
+        renderMyCoachDisplay();
+        renderCoachChecklist();
+        renderCalendar();
+        populateCoachSelects();
+        renderTimetableDisplay();
+        refreshIcons();
+        setupModalBackdropClicks();
+      }
+
+      function setupModalBackdropClicks() {
+        window.addEventListener('click', function(e) {
+          if (e.target && e.target.id && e.target.id.startsWith('modal-')) {
+            closeModal(e.target.id);
+          }
+        });
+      }
+
+      window.showToast = function(msg) {
+        const toast = document.getElementById('toast');
+        const msgEl = document.getElementById('toast-message');
+        if (!toast || !msgEl) return;
+        msgEl.textContent = msg;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+      };
+
+      window.openModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+        refreshIcons();
+      };
+
+      window.closeModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      };
+
+      // Admin Mode Switcher
+      window.toggleAdminMode = function() {
+        isAdminMode = !isAdminMode;
+        setStorage('isAdminMode', isAdminMode);
+        renderAdminUI();
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        showToast(isAdminMode ? '管理者モードに切り替えました' : '一般コーチモードに戻りました');
+      };
+
+      function renderAdminUI() {
+        const badge = document.getElementById('admin-mode-badge');
+        const panel = document.getElementById('admin-panel');
+        const toggleBtnText = document.getElementById('admin-toggle-text');
+        const editTtBtn = document.getElementById('btn-edit-timetable');
+        const logoBg = document.getElementById('header-logo-bg');
+
+        if (isAdminMode) {
+          badge?.classList.remove('hidden');
+          panel?.classList.remove('hidden');
+          editTtBtn?.classList.remove('hidden');
+          if (toggleBtnText) toggleBtnText.textContent = '一般モードへ';
+          if (logoBg) logoBg.className = 'w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-200 flex-shrink-0 transition-colors';
+        } else {
+          badge?.classList.add('hidden');
+          panel?.classList.add('hidden');
+          editTtBtn?.classList.add('hidden');
+          if (toggleBtnText) toggleBtnText.textContent = '管理者モードへ';
+          if (logoBg) logoBg.className = 'w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-100 flex-shrink-0 transition-colors';
+        }
+        refreshIcons();
+      }
+
+      function renderMyCoachDisplay() {
+        const disp = document.getElementById('current-coach-display');
+        if (disp) disp.textContent = myCoach;
+      }
+
+      window.openCoachSelectModal = function() {
+        const sel = document.getElementById('select-my-coach-dropdown');
+        if (sel) {
+          sel.innerHTML = COACH_NAMES.map(c => 
+            `<option value="${c}" ${c === myCoach ? 'selected' : ''}>${c}</option>`
+          ).join('');
+        }
+        openModal('modal-select-coach');
+      };
+
+      window.saveMyCoachSelection = function() {
+        const sel = document.getElementById('select-my-coach-dropdown');
+        if (sel) {
+          myCoach = sel.value;
+          setStorage('myCoach', myCoach);
+          renderMyCoachDisplay();
+          closeModal('modal-select-coach');
+          showToast(`操作者を「${myCoach}」に設定しました`);
+          renderCalendar();
+        }
+      };
+
+      function renderCoachChecklist() {
+        const container = document.getElementById('coach-checklist');
+        const countEl = document.getElementById('coach-count');
+        if (!container) return;
+
+        if (countEl) countEl.textContent = COACH_NAMES.length;
+
+        container.innerHTML = COACH_NAMES.map(coach => {
+          const isChecked = selectedCoaches.includes(coach);
+          const isMine = coach === myCoach;
+          return `
+            <label class="flex items-center justify-between p-1 rounded hover:bg-slate-50 cursor-pointer text-xs">
+              <div class="flex items-center gap-1.5 truncate">
+                <input type="checkbox" value="${coach}" ${isChecked ? 'checked' : ''} onchange="toggleCoachFilter('${coach}')" class="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 flex-shrink-0">
+                <span class="truncate font-medium ${isMine ? 'text-indigo-700 font-bold' : 'text-slate-700'}">${coach}</span>
+              </div>
+              ${isMine ? '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1 rounded font-bold flex-shrink-0">自分</span>' : ''}
+            </label>
+          `;
+        }).join('');
+      }
+
+      window.filterCoachList = function() {
+        const query = (document.getElementById('coach-search')?.value || '').toLowerCase();
+        const labels = document.querySelectorAll('#coach-checklist label');
+        labels.forEach(lbl => {
+          const text = lbl.textContent.toLowerCase();
+          lbl.style.display = text.includes(query) ? 'flex' : 'none';
+        });
+      };
+
+      window.toggleCoachFilter = function(coach) {
+        if (selectedCoaches.includes(coach)) {
+          selectedCoaches = selectedCoaches.filter(c => c !== coach);
+        } else {
+          selectedCoaches.push(coach);
+        }
+        setStorage('selectedCoaches', selectedCoaches);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+      };
+
+      window.toggleAllCoaches = function(select) {
+        selectedCoaches = select ? COACH_NAMES.slice() : [];
+        setStorage('selectedCoaches', selectedCoaches);
+        renderCoachChecklist();
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+      };
+
+      function populateCoachSelects() {
+        const addSel = document.getElementById('add-shift-coach');
+        if (addSel) {
+          addSel.innerHTML = COACH_NAMES.map(c => `<option value="${c}" ${c === myCoach ? 'selected' : ''}>${c}</option>`).join('');
+        }
+      }
+
+      window.setMonth = function(year, month) {
+        currentYear = year;
+        currentMonth = month;
+        updateMonthUI();
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+      };
+
+      window.prevMonth = function() {
+        if (currentYear === 2027 && currentMonth === 0) setMonth(2026, 11);
+      };
+
+      window.nextMonth = function() {
+        if (currentYear === 2026 && currentMonth === 11) setMonth(2027, 0);
+      };
+
+      function updateMonthUI() {
+        const textEl = document.getElementById('current-month-text');
+        const btn12 = document.getElementById('btn-month-12');
+        const btn1 = document.getElementById('btn-month-1');
+
+        if (textEl) textEl.textContent = `${currentYear}年 ${currentMonth + 1}月`;
+
+        if (currentMonth === 11) {
+          btn12?.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+          btn12?.classList.remove('text-slate-600');
+          btn1?.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+          btn1?.classList.add('text-slate-600');
+        } else {
+          btn1?.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+          btn1?.classList.remove('text-slate-600');
+          btn12?.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+          btn12?.classList.add('text-slate-600');
+        }
+      }
+
+      function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        // Leading padding cells
+        for (let i = 0; i < firstDay; i++) {
+          const emptyCell = document.createElement('div');
+          emptyCell.className = 'bg-slate-50/50 min-h-[90px] border-b border-slate-200';
+          grid.appendChild(emptyCell);
+        }
+
+        // Active Month Days
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dateObj = new Date(currentYear, currentMonth, day);
+          const dayOfWeek = dateObj.getDay();
+          const isHoliday = holidays.includes(dateStr);
+
+          const dayCell = document.createElement('div');
+          dayCell.className = `p-1 min-h-[95px] flex flex-col justify-between hover:brightness-95 transition cursor-pointer group border-b border-slate-200 ${
+            isHoliday ? 'holiday-bg' : 'bg-white'
+          }`;
+
+          dayCell.onclick = (e) => {
+            if (e.target.closest('.period-badge')) return;
+            openDayDetail(dateStr);
+          };
+
+          let numColor = 'text-slate-700';
+          if (dayOfWeek === 0) numColor = 'text-red-500 font-bold';
+          if (dayOfWeek === 6) numColor = 'text-blue-500 font-bold';
+
+          const topRow = document.createElement('div');
+          topRow.className = 'flex justify-between items-center mb-0.5';
+          topRow.innerHTML = `
+            <span class="text-xs font-semibold ${numColor}">${day}</span>
+            ${isHoliday ? '<span class="text-[9px] font-bold bg-rose-500 text-white px-1 py-0.2 rounded">休校日</span>' : ''}
+          `;
+          dayCell.appendChild(topRow);
+
+          const badgesContainer = document.createElement('div');
+          badgesContainer.className = 'space-y-0.5 flex-1';
+
+          if (!isHoliday) {
+            const dayShifts = shifts.filter(s => s.date === dateStr && selectedCoaches.includes(s.coach));
+
+            PERIODS.forEach(p => {
+              const pShifts = dayShifts.filter(s => s.period === p);
+              if (pShifts.length > 0) {
+                const badge = document.createElement('div');
+                
+                // Status Color Logic
+                let statusBg = 'bg-indigo-50 border-indigo-200 text-indigo-700';
+                if (pShifts.length >= 3) statusBg = 'bg-emerald-50 border-emerald-200 text-emerald-800';
+                else if (pShifts.length === 1 || pShifts.length === 2) statusBg = 'bg-amber-50 border-amber-300 text-amber-900';
+
+                badge.className = `period-badge text-[10px] px-1 py-0.5 rounded border flex justify-between items-center font-medium hover:brightness-95 transition ${statusBg}`;
+                
+                const hasMe = pShifts.some(s => s.coach === myCoach);
+                badge.innerHTML = `
+                  <span>${p}講</span>
+                  <span class="font-bold flex items-center gap-0.5">
+                    ${hasMe ? '<span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>' : ''}
+                    ${pShifts.length}名
+                  </span>
+                `;
+                badge.onclick = (e) => {
+                  e.stopPropagation();
+                  openDayDetail(dateStr);
+                };
+                badgesContainer.appendChild(badge);
+              }
+            });
+          } else {
+            const holidayLabel = document.createElement('div');
+            holidayLabel.className = 'text-[10px] font-bold text-rose-600 text-center py-2 italic';
+            holidayLabel.textContent = '休校日 (授業なし)';
+            badgesContainer.appendChild(holidayLabel);
+          }
+
+          dayCell.appendChild(badgesContainer);
+          grid.appendChild(dayCell);
+        }
+
+        // Trailing cells
+        const totalCellsSoFar = firstDay + daysInMonth;
+        const remainder = totalCellsSoFar % 7;
+        if (remainder !== 0) {
+          const fillCount = 7 - remainder;
+          for (let i = 0; i < fillCount; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'bg-slate-50/50 min-h-[90px] border-b border-slate-200';
+            grid.appendChild(emptyCell);
+          }
+        }
+
+        refreshIcons();
+      }
+
+      let currentDetailDate = '';
+
+      window.openDayDetail = function(dateStr) {
+        currentDetailDate = dateStr;
+        const titleEl = document.getElementById('day-detail-title');
+        const subtitleEl = document.getElementById('day-detail-subtitle');
+        const holidayBadge = document.getElementById('day-holiday-badge');
+        const holidayBar = document.getElementById('holiday-toggle-bar');
+        const btnToggleHoliday = document.getElementById('btn-toggle-holiday-day');
+        const container = document.getElementById('day-detail-content');
+        if (!container) return;
+
+        const d = new Date(dateStr);
+        const dayOfWeekStr = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+        const isHoliday = holidays.includes(dateStr);
+
+        if (titleEl) {
+          titleEl.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 (${dayOfWeekStr}) 出勤詳細`;
+        }
+
+        if (isHoliday) {
+          holidayBadge?.classList.remove('hidden');
+        } else {
+          holidayBadge?.classList.add('hidden');
+        }
+
+        if (isAdminMode && holidayBar) {
+          holidayBar.classList.remove('hidden');
+          if (btnToggleHoliday) {
+            btnToggleHoliday.textContent = isHoliday ? '通常営業日に変更' : '休校日に設定';
+            btnToggleHoliday.className = isHoliday 
+              ? 'px-2.5 py-1 text-xs font-bold rounded-lg transition shadow-sm bg-slate-700 text-white hover:bg-slate-800'
+              : 'px-2.5 py-1 text-xs font-bold rounded-lg transition shadow-sm bg-rose-600 text-white hover:bg-rose-700';
+          }
+        } else if (holidayBar) {
+          holidayBar.classList.add('hidden');
+        }
+
+        if (subtitleEl) {
+          subtitleEl.textContent = isAdminMode 
+            ? '⚡ 管理者権限モード実行中: すべてのコーチの出勤データを自由に編集・削除できます。' 
+            : '※あなたの名前以外の予定は保護されているため編集できません。';
+        }
+
+        container.innerHTML = '';
+
+        if (isHoliday) {
+          container.innerHTML = `
+            <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center">
+              <i data-lucide="calendar-off" class="w-8 h-8 text-rose-500 mx-auto mb-1"></i>
+              <p class="text-xs font-bold text-rose-800">この日は休校日（授業なし）に指定されています。</p>
+              <p class="text-[10px] text-rose-600 mt-0.5">※出勤コマの登録・配属はありません。</p>
+            </div>
+          `;
+        } else {
+          PERIODS.forEach(p => {
+            const periodShifts = shifts.filter(s => s.date === dateStr && s.period === p);
+
+            const periodBox = document.createElement('div');
+            periodBox.className = 'bg-slate-50 rounded-xl p-2.5 border border-slate-200';
+
+            const periodHeader = document.createElement('div');
+            periodHeader.className = 'flex justify-between items-center mb-1.5';
+            periodHeader.innerHTML = `
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                ${p}講 [${timetableTimes[p] || ''}] (${periodShifts.length}名)
+              </span>
+            `;
+            periodBox.appendChild(periodHeader);
+
+            if (periodShifts.length === 0) {
+              const emptyMsg = document.createElement('p');
+              emptyMsg.className = 'text-[10px] text-rose-500 font-bold italic';
+              emptyMsg.textContent = '出勤可能なコーチがいません (人手不足)';
+              periodBox.appendChild(emptyMsg);
+            } else {
+              const list = document.createElement('div');
+              list.className = 'flex flex-wrap gap-1';
+
+              periodShifts.forEach(s => {
+                const isMine = s.coach === myCoach;
+                const canEdit = isMine || isAdminMode;
+
+                const item = document.createElement('span');
+                item.className = `inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium border ${
+                  isMine 
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' 
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`;
+
+                if (canEdit) {
+                  item.innerHTML = `
+                    <span>${s.coach}</span>
+                    <button onclick="removeShift('${s.date}', ${s.period}, '${s.coach}')" title="削除" class="hover:bg-red-500 p-0.5 rounded transition hover:text-white">
+                      <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                  `;
+                } else {
+                  item.innerHTML = `
+                    <span>${s.coach}</span>
+                    <i data-lucide="lock" class="w-3 h-3 text-slate-400" title="他人の予定は編集不可"></i>
+                  `;
+                }
+                list.appendChild(item);
+              });
+              periodBox.appendChild(list);
+            }
+
+            container.appendChild(periodBox);
+          });
+        }
+
+        openModal('modal-day-detail');
+        refreshIcons();
+      };
+
+      window.toggleCurrentDayHoliday = function() {
+        if (!currentDetailDate) return;
+        if (holidays.includes(currentDetailDate)) {
+          holidays = holidays.filter(d => d !== currentDetailDate);
+          showToast('通常営業日に変更しました');
+        } else {
+          holidays.push(currentDetailDate);
+          showToast('休校日に設定しました');
+        }
+        setStorage('coachHolidays', holidays);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        openDayDetail(currentDetailDate);
+      };
+
+      window.removeShift = function(dateStr, period, coach) {
+        if (!isAdminMode && coach !== myCoach) {
+          alert('他人の出勤データは削除できません。');
+          return;
+        }
+        shifts = shifts.filter(s => !(s.date === dateStr && s.period === period && s.coach === coach));
+        setStorage('coachShiftsData', shifts);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        openDayDetail(dateStr);
+        showToast(`${coach}さんの ${period}講 の出勤を削除しました`);
+      };
+
+      window.openAddShiftForCurrentDay = function() {
+        closeModal('modal-day-detail');
+        const dateInput = document.getElementById('add-shift-date');
+        const coachSel = document.getElementById('add-shift-coach');
+        if (dateInput) dateInput.value = currentDetailDate;
+        if (coachSel) coachSel.value = myCoach;
+        openModal('modal-add-shift');
+      };
+
+      window.openAddShiftModal = function() {
+        const coachSel = document.getElementById('add-shift-coach');
+        if (coachSel) coachSel.value = myCoach;
+        openModal('modal-add-shift');
+      };
+
+      window.handleAddShift = function(e) {
+        e.preventDefault();
+        const coach = document.getElementById('add-shift-coach')?.value;
+        const date = document.getElementById('add-shift-date')?.value;
+        const checkboxes = document.querySelectorAll('input[name="add-period"]:checked');
+
+        if (!coach || !date || checkboxes.length === 0) {
+          alert('コーチ名、日付、コマを正しく選択してください。');
+          return;
+        }
+
+        checkboxes.forEach(cb => {
+          const period = parseInt(cb.value, 10);
+          const exists = shifts.some(s => s.date === date && s.period === period && s.coach === coach);
+          if (!exists) {
+            shifts.push({ date, period, coach });
+          }
+        });
+
+        setStorage('coachShiftsData', shifts);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        closeModal('modal-add-shift');
+        showToast(`${coach}さんの出勤コマを追加しました`);
+      };
+
+      window.openBulkModal = function() {
+        const display = document.getElementById('bulk-coach-name-display');
+        if (display) display.value = myCoach;
+        openModal('modal-bulk');
+      };
+
+      window.handleBulkRegister = function(e) {
+        e.preventDefault();
+        const range = document.querySelector('input[name="bulk-range"]:checked')?.value || 'all';
+        const dayCbs = document.querySelectorAll('input[name="bulk-day"]:checked');
+        const periodCbs = document.querySelectorAll('input[name="bulk-period"]:checked');
+
+        if (dayCbs.length === 0 || periodCbs.length === 0) {
+          alert('対象の曜日とコマを選択してください。');
+          return;
+        }
+
+        const selectedDays = Array.from(dayCbs).map(cb => parseInt(cb.value, 10));
+        const selectedPeriods = Array.from(periodCbs).map(cb => parseInt(cb.value, 10));
+
+        let datesToProcess = [];
+
+        if (range === 'all' || range === '12') {
+          for (let d = 1; d <= 31; d++) {
+            const dateObj = new Date(2026, 11, d);
+            const dateStr = `2026-12-${String(d).padStart(2, '0')}`;
+            if (selectedDays.includes(dateObj.getDay()) && !holidays.includes(dateStr)) {
+              datesToProcess.push(dateStr);
+            }
+          }
+        }
+
+        if (range === 'all' || range === '1') {
+          for (let d = 1; d <= 31; d++) {
+            const dateObj = new Date(2027, 0, d);
+            const dateStr = `2027-01-${String(d).padStart(2, '0')}`;
+            if (selectedDays.includes(dateObj.getDay()) && !holidays.includes(dateStr)) {
+              datesToProcess.push(dateStr);
+            }
+          }
+        }
+
+        let addedCount = 0;
+        datesToProcess.forEach(dateStr => {
+          selectedPeriods.forEach(p => {
+            const exists = shifts.some(s => s.date === dateStr && s.period === p && s.coach === myCoach);
+            if (!exists) {
+              shifts.push({ date: dateStr, period: p, coach: myCoach });
+              addedCount++;
+            }
+          });
+        });
+
+        setStorage('coachShiftsData', shifts);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        closeModal('modal-bulk');
+        showToast(`${myCoach}さんの出勤コマを一括登録しました (${addedCount}件)`);
+      };
+
+      window.handleResetOwnShifts = function() {
+        const range = document.querySelector('input[name="bulk-range"]:checked')?.value || 'all';
+        let rangeText = '12月〜1月の全期間';
+        if (range === '12') rangeText = '12月のみ';
+        if (range === '1') rangeText = '1月のみ';
+
+        if (!confirm(`${myCoach} さんの ${rangeText} の出勤データのみを全消去しますか？\n(他の方のデータには影響しません)`)) {
+          return;
+        }
+
+        shifts = shifts.filter(s => {
+          if (s.coach !== myCoach) return true;
+          const isDec = s.date.startsWith('2026-12');
+          const isJan = s.date.startsWith('2027-01');
+          if (range === 'all') return false;
+          if (range === '12' && isDec) return false;
+          if (range === '1' && isJan) return false;
+          return true;
+        });
+
+        setStorage('coachShiftsData', shifts);
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        closeModal('modal-bulk');
+        showToast(`${myCoach} さんの予定をリセットしました`);
+      };
+
+      window.openHolidayModal = function() {
+        renderHolidayList();
+        openModal('modal-holiday');
+      };
+
+      function renderHolidayList() {
+        const container = document.getElementById('holiday-list-container');
+        if (!container) return;
+
+        if (holidays.length === 0) {
+          container.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-2">休校日は設定されていません</p>`;
+          return;
+        }
+
+        // Sort dates
+        const sorted = holidays.slice().sort();
+        container.innerHTML = sorted.map(dStr => {
+          const d = new Date(dStr);
+          const dayOfWeekStr = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+          return `
+            <div class="flex items-center justify-between p-1.5 bg-white rounded-lg border border-slate-200 text-xs">
+              <span class="font-bold text-slate-700">${dStr} (${dayOfWeekStr})</span>
+              <button onclick="removeHoliday('${dStr}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-0.5">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                <span>解除</span>
+              </button>
+            </div>
+          `;
+        }).join('');
+        refreshIcons();
+      }
+
+      window.removeHoliday = function(dateStr) {
+        holidays = holidays.filter(d => d !== dateStr);
+        setStorage('coachHolidays', holidays);
+        renderHolidayList();
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+        showToast(`${dateStr} の休校指定を解除しました`);
+      };
+
+      window.applyPresetHolidays = function(type) {
+        if (type === 'yearEnd') {
+          const list = ['2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03'];
+          list.forEach(d => {
+            if (!holidays.includes(d)) holidays.push(d);
+          });
+          showToast('年末年始(12/31〜1/3)を休校日に指定しました');
+        } else if (type === 'sundays') {
+          // Add all Sundays in Dec 2026 & Jan 2027
+          for (let d = 1; d <= 31; d++) {
+            const d1 = new Date(2026, 11, d);
+            if (d1.getDay() === 0) {
+              const str = `2026-12-${String(d).padStart(2, '0')}`;
+              if (!holidays.includes(str)) holidays.push(str);
+            }
+            const d2 = new Date(2027, 0, d);
+            if (d2.getDay() === 0) {
+              const str = `2027-01-${String(d).padStart(2, '0')}`;
+              if (!holidays.includes(str)) holidays.push(str);
+            }
+          }
+          showToast('冬期期間の全日曜日を休校日に指定しました');
+        }
+        setStorage('coachHolidays', holidays);
+        renderHolidayList();
+        renderCalendar();
+        if (currentView === 'matrix') renderMatrixTable();
+      };
+
+      // Timetable editing
+      window.openTimetableModal = function() {
+        openModal('modal-edit-timetable');
+      };
+
+      window.saveTimetableChanges = function() {
+        timetableTimes[2] = document.getElementById('tt-time-2')?.value || timetableTimes[2];
+        timetableTimes[3] = document.getElementById('tt-time-3')?.value || timetableTimes[3];
+        timetableTimes[4] = document.getElementById('tt-time-4')?.value || timetableTimes[4];
+        timetableTimes[5] = document.getElementById('tt-time-5')?.value || timetableTimes[5];
+        timetableTimes[6] = document.getElementById('tt-time-6')?.value || timetableTimes[6];
+        
+        renderTimetableDisplay();
+        closeModal('modal-edit-timetable');
+        showToast('時間割の表記を更新しました');
+      };
+
+      function renderTimetableDisplay() {
+        const list = document.getElementById('timetable-list-display');
+        if (list) {
+          list.innerHTML = `
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>2講:</span><span class="font-bold text-slate-800">${timetableTimes[2]}</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>3講:</span><span class="font-bold text-slate-800">${timetableTimes[3]}</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>4講:</span><span class="font-bold text-slate-800">${timetableTimes[4]}</span></li>
+            <li class="flex justify-between border-b border-slate-100 pb-0.5"><span>5講:</span><span class="font-bold text-slate-800">${timetableTimes[5]}</span></li>
+            <li class="flex justify-between"><span>6講:</span><span class="font-bold text-slate-800">${timetableTimes[6]}</span></li>
+          `;
+        }
+      }
+
+      // Main View Switching
+      window.switchMainView = function(view) {
+        currentView = view;
+        const calView = document.getElementById('view-calendar');
+        const matView = document.getElementById('view-matrix');
+        const tabCal = document.getElementById('tab-calendar');
+        const tabMat = document.getElementById('tab-matrix');
+
+        if (view === 'calendar') {
+          calView?.classList.remove('hidden');
+          matView?.classList.add('hidden');
+          tabCal?.classList.add('bg-white', 'text-indigo-700', 'shadow-sm');
+          tabCal?.classList.remove('text-slate-600');
+          tabMat?.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm');
+          tabMat?.classList.add('text-slate-600');
+        } else {
+          calView?.classList.add('hidden');
+          matView?.classList.remove('hidden');
+          tabMat?.classList.add('bg-white', 'text-indigo-700', 'shadow-sm');
+          tabMat?.classList.remove('text-slate-600');
+          tabCal?.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm');
+          tabCal?.classList.add('text-slate-600');
+          renderMatrixTable();
+        }
+      };
+
+      // Matrix Table Generation
+      function renderMatrixTable() {
+        const container = document.getElementById('matrix-table-container');
+        if (!container) return;
+
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        let html = `
+          <table class="w-full text-xs text-left border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700">
+                <th class="p-2 border border-slate-200 font-bold w-20">日付</th>
+                <th class="p-2 border border-slate-200 font-bold w-12">講</th>
+                <th class="p-2 border border-slate-200 font-bold w-16">時間帯</th>
+                <th class="p-2 border border-slate-200 font-bold">出勤可能コーチ (${selectedCoaches.length}名中)</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dateObj = new Date(currentYear, currentMonth, d);
+          const dayOfWeekStr = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+          const isHoliday = holidays.includes(dateStr);
+
+          if (isHoliday) {
+            html += `
+              <tr class="bg-rose-50/60 border-b border-slate-200">
+                <td class="p-2 border border-slate-200 font-bold text-rose-800">${d}日 (${dayOfWeekStr})</td>
+                <td colspan="3" class="p-2 border border-slate-200 font-bold text-rose-600 italic">休校日 (授業なし)</td>
+              </tr>
+            `;
+          } else {
+            PERIODS.forEach((p, idx) => {
+              const pShifts = shifts.filter(s => s.date === dateStr && s.period === p && selectedCoaches.includes(s.coach));
+              const coachNamesList = pShifts.map(s => s.coach).join(' / ');
+
+              let countBg = 'bg-emerald-100 text-emerald-800';
+              if (pShifts.length === 0) countBg = 'bg-rose-100 text-rose-800 font-bold';
+              else if (pShifts.length <= 2) countBg = 'bg-amber-100 text-amber-900';
+
+              html += `
+                <tr class="hover:bg-slate-50 border-b border-slate-200">
+                  ${idx === 0 ? `<td rowspan="5" class="p-2 border border-slate-200 font-bold bg-white text-slate-800 align-top">${d}日 (${dayOfWeekStr})</td>` : ''}
+                  <td class="p-1.5 border border-slate-200 font-bold text-center">${p}講</td>
+                  <td class="p-1.5 border border-slate-200 text-[10px] font-mono text-slate-500">${timetableTimes[p] || ''}</td>
+                  <td class="p-1.5 border border-slate-200">
+                    <div class="flex items-center gap-2">
+                      <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${countBg}">${pShifts.length}名</span>
+                      <span class="font-medium text-slate-700">${coachNamesList || '<span class="text-rose-400 italic">配置なし</span>'}</span>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            });
+          }
+        }
+
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+      }
+
+      window.openMatrixModal = function() {
+        switchMainView('matrix');
+      };
+
+      // Export CSV Data
+      window.exportToCSV = function() {
+        try {
+          let csvContent = "\uFEFF日付,曜日,区分,講数,時間帯,人数,出勤可能コーチ一覧\n";
+          const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dateObj = new Date(currentYear, currentMonth, d);
+            const dayOfWeekStr = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+            const isHoliday = holidays.includes(dateStr);
+
+            if (isHoliday) {
+              csvContent += `"${dateStr}","${dayOfWeekStr}","休校日","-","-","0","-"\n`;
+            } else {
+              PERIODS.forEach(p => {
+                const pShifts = shifts.filter(s => s.date === dateStr && s.period === p);
+                const names = pShifts.map(s => s.coach).join(' / ');
+                csvContent += `"${dateStr}","${dayOfWeekStr}","通常","${p}講","${timetableTimes[p]}","${pShifts.length}","${names}"\n`;
+              });
+            }
+          }
+
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `コーチ出勤可能コマ一覧_${currentYear}年${currentMonth + 1}月.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          showToast('CSVファイルをダウンロードしました！');
+        } catch(e) {
+          alert('CSVの出力に失敗しました。');
+        }
+      };
+
+    })();
+  </script>
+</body>
+</html>
