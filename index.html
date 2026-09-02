@@ -40,7 +40,7 @@
 </head>
 <body class="min-h-screen pb-8 selection:bg-indigo-500 selection:text-white">
   <script>
-    // Global error shield to prevent crashes
+    // Global error shield
     window.onerror = function() { return true; };
     window.addEventListener('unhandledrejection', function(event) {
       event.preventDefault();
@@ -62,7 +62,7 @@
                 <h1 class="text-sm sm:text-base font-bold text-slate-800 tracking-tight leading-tight whitespace-nowrap">コーチ出勤可能コマ共有</h1>
                 <span id="admin-mode-badge" class="hidden text-[9px] font-extrabold bg-amber-500 text-white px-1.5 py-0.5 rounded shadow-sm">管理者</span>
               </div>
-              <p class="text-[10px] text-slate-500 truncate hidden xs:block">2講〜6講 出勤スケジュール管理</p>
+              <p class="text-[10px] text-slate-500 truncate hidden xs:block">2講〜6講 出勤スケジュール管理 (2026年9月〜2027年1月)</p>
             </div>
           </div>
 
@@ -81,17 +81,18 @@
             <button id="btn-prev-month" onclick="prevMonth()" class="p-1 hover:bg-white rounded transition text-slate-600" title="前月">
               <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
             </button>
-            <span id="current-month-text" class="font-bold text-slate-700 px-1.5 text-center whitespace-nowrap min-w-[70px]">2026年 12月</span>
+            <span id="current-month-text" class="font-bold text-slate-700 px-1.5 text-center whitespace-nowrap min-w-[70px]">2026年 9月</span>
             <button id="btn-next-month" onclick="nextMonth()" class="p-1 hover:bg-white rounded transition text-slate-600" title="次月">
               <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
             </button>
           </div>
 
-          <!-- Fast Month Toggle Buttons -->
+          <!-- Fast Month Toggle Buttons (2026年9月〜2027年1月) -->
           <div class="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <button id="btn-month-9" onclick="setMonth(2026, 8)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition bg-indigo-600 text-white shadow-sm">9月</button>
             <button id="btn-month-10" onclick="setMonth(2026, 9)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition text-slate-600 hover:text-slate-900">10月</button>
             <button id="btn-month-11" onclick="setMonth(2026, 10)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition text-slate-600 hover:text-slate-900">11月</button>
-            <button id="btn-month-12" onclick="setMonth(2026, 11)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition bg-indigo-600 text-white shadow-sm">12月</button>
+            <button id="btn-month-12" onclick="setMonth(2026, 11)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition text-slate-600 hover:text-slate-900">12月</button>
             <button id="btn-month-1" onclick="setMonth(2027, 0)" class="px-1.5 sm:px-2 py-0.5 text-[11px] font-semibold rounded transition text-slate-600 hover:text-slate-900">1月</button>
           </div>
 
@@ -111,14 +112,11 @@
 
         <!-- Action Buttons Bar -->
         <div class="flex items-center gap-1.5 pt-1 md:pt-0 border-t md:border-t-0 border-slate-100 justify-between md:justify-start">
-          <button onclick="openRoomModal()" class="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded-lg text-xs font-bold transition shadow-sm truncate" title="PCとスマホの合言葉設定">
-            <i data-lucide="key" class="w-3.5 h-3.5 flex-shrink-0"></i>
-            <span>合言葉: <span id="room-id-display">winter_123</span></span>
-          </button>
           <button onclick="manualSyncFromCloud()" class="inline-flex items-center justify-center p-1 md:px-2 md:py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition shadow-sm" title="手動同期">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span class="ml-1 text-[11px] hidden sm:inline">最新同期</span>
           </button>
-          <button onclick="openAddShiftModal()" class="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm truncate">
+          <button onclick="openAddShiftModal()" class="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm truncate">
             <i data-lucide="plus" class="w-3.5 h-3.5 flex-shrink-0"></i>
             <span>コマ追加</span>
           </button>
@@ -286,6 +284,30 @@
   </main>
 
 
+  <!-- Admin Password Modal -->
+  <div id="modal-admin-password" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-xl max-w-xs w-full p-4 text-center border border-slate-100">
+      <div class="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2">
+        <i data-lucide="lock" class="w-4 h-4"></i>
+      </div>
+      <h3 class="text-xs font-bold text-slate-800 mb-1">管理者パスワード認証</h3>
+      <p class="text-[10px] text-slate-500 mb-3 leading-relaxed">管理者機能を利用するためのパスワードを入力してください。</p>
+
+      <form onsubmit="event.preventDefault(); submitAdminPassword();" class="space-y-2.5">
+        <input type="password" id="input-admin-password" placeholder="パスワードを入力" class="w-full text-center text-xs font-bold p-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500">
+        <div class="flex gap-1.5">
+          <button type="button" onclick="closeModal('modal-admin-password')" class="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">
+            キャンセル
+          </button>
+          <button type="submit" class="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition">
+            認証する
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
   <!-- 1. Add Shift Modal -->
   <div id="modal-add-shift" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
     <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-4 border border-slate-100">
@@ -309,7 +331,7 @@
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">日付</label>
-          <input type="date" id="add-shift-date" required min="2026-10-01" max="2027-01-31" class="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <input type="date" id="add-shift-date" required min="2026-09-01" max="2027-01-31" class="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
 
         <div>
@@ -357,7 +379,7 @@
       <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
         <div>
           <div class="flex items-center gap-1.5">
-            <h3 id="day-detail-title" class="text-xs sm:text-sm font-bold text-slate-800">2026年12月1日 (火) 出勤詳細</h3>
+            <h3 id="day-detail-title" class="text-xs sm:text-sm font-bold text-slate-800">2026年9月1日 (火) 出勤詳細</h3>
             <span id="day-holiday-badge" class="hidden text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full">休校日</span>
           </div>
           <p id="day-detail-subtitle" class="text-[10px] text-slate-500 mt-0.5">※あなたの名前以外の予定は保護されています。</p>
@@ -428,10 +450,14 @@
       <form id="form-bulk" onsubmit="handleBulkRegister(event)" class="space-y-2.5">
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">対象期間</label>
-          <div class="grid grid-cols-5 gap-1">
+          <div class="grid grid-cols-6 gap-1">
             <label class="flex items-center justify-center p-1 border border-slate-200 rounded text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
               <input type="radio" name="bulk-range" value="all" checked class="sr-only">
               <span class="text-[9px] sm:text-[10px]">全期間</span>
+            </label>
+            <label class="flex items-center justify-center p-1 border border-slate-200 rounded text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
+              <input type="radio" name="bulk-range" value="9" class="sr-only">
+              <span class="text-[9px] sm:text-[10px]">9月</span>
             </label>
             <label class="flex items-center justify-center p-1 border border-slate-200 rounded text-xs cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 font-bold">
               <input type="radio" name="bulk-range" value="10" class="sr-only">
@@ -666,28 +692,6 @@
     </div>
   </div>
 
-  <!-- 9. Room Passphrase Modal -->
-  <div id="modal-room-id" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-3">
-    <div class="bg-white rounded-2xl shadow-xl max-w-xs w-full p-4 text-center border border-slate-100">
-      <div class="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-1.5">
-        <i data-lucide="key" class="w-4 h-4"></i>
-      </div>
-      <h3 class="text-xs sm:text-sm font-bold text-slate-800 mb-1">同期用の「合言葉」設定</h3>
-      <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">PCとスマホで**同じ合言葉**にすると自動同期されます。</p>
-
-      <input type="text" id="input-room-id" class="w-full text-center text-xs font-bold p-2 bg-slate-50 border border-slate-300 rounded-lg mb-2 focus:outline-none focus:ring-1 focus:ring-amber-500" placeholder="例: 1234">
-
-      <div class="flex gap-1.5">
-        <button onclick="closeModal('modal-room-id')" class="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition">
-          閉じる
-        </button>
-        <button onclick="saveRoomIdSetting()" class="flex-1 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition">
-          接続・同期する
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-3 right-3 left-3 sm:left-auto bg-slate-900 text-white px-3 py-2 rounded-xl shadow-lg text-xs font-bold transition-all duration-300 transform translate-y-20 opacity-0 z-[100] flex items-center gap-2 pointer-events-none justify-center sm:justify-start">
     <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
@@ -698,11 +702,15 @@
     (function() {
       const PERIODS = [2, 3, 4, 5, 6];
       let currentYear = 2026;
-      let currentMonth = 11; // 11 = December
+      let currentMonth = 8; // 8 = September
       let currentView = 'calendar';
       let isAdminMode = false;
       let lastSyncTimestamp = 0;
       let syncTimer = null;
+      let eventSource = null;
+
+      // Default shared room key
+      const roomId = 'kyotocenter';
 
       let coachList = [
         "佐藤 健太", "鈴木 翔太", "高橋 蓮", "田中 拓海", "伊藤 陸",
@@ -725,13 +733,13 @@
       let holidays = ["2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03"];
 
       let shifts = [
-        { date: "2026-12-01", period: 2, coach: "佐藤 健太" },
-        { date: "2026-12-01", period: 2, coach: "鈴木 翔太" },
-        { date: "2026-12-01", period: 3, coach: "高橋 蓮" },
-        { date: "2026-12-01", period: 4, coach: "佐藤 健太" },
-        { date: "2026-12-02", period: 2, coach: "田中 拓海" },
-        { date: "2026-12-02", period: 3, coach: "伊藤 陸" },
-        { date: "2026-12-02", period: 5, coach: "渡辺 陽翔" }
+        { date: "2026-09-01", period: 2, coach: "佐藤 健太" },
+        { date: "2026-09-01", period: 2, coach: "鈴木 翔太" },
+        { date: "2026-09-01", period: 3, coach: "高橋 蓮" },
+        { date: "2026-09-01", period: 4, coach: "佐藤 健太" },
+        { date: "2026-09-02", period: 2, coach: "田中 拓海" },
+        { date: "2026-09-02", period: 3, coach: "伊藤 陸" },
+        { date: "2026-09-02", period: 5, coach: "渡辺 陽翔" }
       ];
 
       function getStorage(key, fallback) {
@@ -749,37 +757,6 @@
         } catch(e) {}
       }
 
-      let roomId = 'winter_123';
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        roomId = urlParams.get('room') || localStorage.getItem('cloudRoomId') || 'winter_123';
-        localStorage.setItem('cloudRoomId', roomId);
-      } catch(e) {}
-
-      function updateRoomDisplay() {
-        const el = document.getElementById('room-id-display');
-        if (el) el.textContent = roomId;
-      }
-
-      window.openRoomModal = function() {
-        const input = document.getElementById('input-room-id');
-        if (input) input.value = roomId;
-        openModal('modal-room-id');
-      };
-
-      window.saveRoomIdSetting = function() {
-        const input = document.getElementById('input-room-id');
-        const val = input ? input.value.trim() : '';
-        if (val) {
-          roomId = val;
-          try { localStorage.setItem('cloudRoomId', roomId); } catch(e){}
-          updateRoomDisplay();
-          initUniversalSyncEngine();
-          closeModal('modal-room-id');
-          showToast(`合言葉「${roomId}」で同期を開始しました！`);
-        }
-      };
-
       function updateCloudStatus(online, text) {
         const mobDot = document.getElementById('cloud-status-dot-mob');
         const mobText = document.getElementById('cloud-status-text-mob');
@@ -790,8 +767,6 @@
             : "w-1.5 h-1.5 rounded-full bg-amber-500";
         }
       }
-
-      let eventSource = null;
 
       function saveStateToCloud() {
         setStorage('app_shifts_' + roomId, shifts);
@@ -884,7 +859,6 @@
         populateCoachSelects();
         if (currentView === 'matrix') renderMatrixTable();
 
-        // 1. Initial history fetch via poll
         if (window.fetch) {
           fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
             .then(res => res.text())
@@ -897,7 +871,6 @@
             });
         }
 
-        // 2. Real-time Push via Server-Sent Events (SSE)
         if (window.EventSource) {
           try {
             eventSource = new EventSource('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/sse');
@@ -923,7 +896,6 @@
           } catch(e) {}
         }
 
-        // 3. Low-frequency background sync check
         syncTimer = setInterval(function() {
           if (!window.fetch) return;
           fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
@@ -935,7 +907,6 @@
         }, 20000);
       }
 
-      // Auto-reconnect when waking up mobile device or switching tabs back
       document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
           manualSyncFromCloud();
@@ -997,7 +968,6 @@
         myCoach = getStorage('myCoach', coachList[0] || '佐藤 健太');
         isAdminMode = getStorage('isAdminMode', false);
 
-        updateRoomDisplay();
         renderAdminUI();
         validateCurrentCoachState();
         renderCoachChecklist();
@@ -1046,12 +1016,35 @@
       };
 
       window.toggleAdminMode = function() {
-        isAdminMode = !isAdminMode;
-        setStorage('isAdminMode', isAdminMode);
-        renderAdminUI();
-        renderCalendar();
-        if (currentView === 'matrix') renderMatrixTable();
-        showToast(isAdminMode ? '管理者モードに変更' : '一般モードに変更');
+        if (isAdminMode) {
+          isAdminMode = false;
+          setStorage('isAdminMode', isAdminMode);
+          renderAdminUI();
+          renderCalendar();
+          if (currentView === 'matrix') renderMatrixTable();
+          showToast('一般モードに変更しました');
+        } else {
+          const passInput = document.getElementById('input-admin-password');
+          if (passInput) passInput.value = '';
+          openModal('modal-admin-password');
+        }
+      };
+
+      window.submitAdminPassword = function() {
+        const passInput = document.getElementById('input-admin-password');
+        const pass = passInput ? passInput.value.trim() : '';
+
+        if (pass === 'kyotocenter') {
+          isAdminMode = true;
+          setStorage('isAdminMode', isAdminMode);
+          closeModal('modal-admin-password');
+          renderAdminUI();
+          renderCalendar();
+          if (currentView === 'matrix') renderMatrixTable();
+          showToast('管理者モードに切り替えました');
+        } else {
+          showToast('パスワードが正しくありません');
+        }
       };
 
       function renderAdminUI() {
@@ -1356,6 +1349,7 @@
       window.prevMonth = function() {
         let m = currentMonth - 1;
         let y = currentYear;
+        if (m < 8 && y === 2026) return; // 2026年9月より前には移動しない
         if (m < 0) {
           m = 11;
           y--;
@@ -1366,6 +1360,7 @@
       window.nextMonth = function() {
         let m = currentMonth + 1;
         let y = currentYear;
+        if (m > 0 && y >= 2027) return; // 2027年1月より後には移動しない
         if (m > 11) {
           m = 0;
           y++;
@@ -1375,6 +1370,7 @@
 
       function updateMonthUI() {
         const textEl = document.getElementById('current-month-text');
+        const btn9 = document.getElementById('btn-month-9');
         const btn10 = document.getElementById('btn-month-10');
         const btn11 = document.getElementById('btn-month-11');
         const btn12 = document.getElementById('btn-month-12');
@@ -1383,6 +1379,7 @@
         if (textEl) textEl.textContent = `${currentYear}年 ${currentMonth + 1}月`;
 
         const monthBtns = [
+          { el: btn9, year: 2026, month: 8 },
           { el: btn10, year: 2026, month: 9 },
           { el: btn11, year: 2026, month: 10 },
           { el: btn12, year: 2026, month: 11 },
@@ -1723,6 +1720,7 @@
         let datesToProcess = [];
 
         const targetMonths = [
+          { key: '9',  year: 2026, month: 8 },
           { key: '10', year: 2026, month: 9 },
           { key: '11', year: 2026, month: 10 },
           { key: '12', year: 2026, month: 11 },
@@ -1770,11 +1768,12 @@
           return;
         }
 
-        let rangeText = '10月〜1月の全期間';
+        let rangeText = '9月〜1月の全期間';
+        if (range === '9')  rangeText = '9月のみ';
         if (range === '10') rangeText = '10月のみ';
         if (range === '11') rangeText = '11月のみ';
         if (range === '12') rangeText = '12月のみ';
-        if (range === '1') rangeText = '1月のみ';
+        if (range === '1')  rangeText = '1月のみ';
 
         openConfirmModal(
           '出勤データの一括削除',
@@ -1783,10 +1782,11 @@
             shifts = shifts.filter(s => {
               if (s.coach !== targetCoach) return true;
               if (range === 'all') return false;
+              if (range === '9'  && s.date.startsWith('2026-09')) return false;
               if (range === '10' && s.date.startsWith('2026-10')) return false;
               if (range === '11' && s.date.startsWith('2026-11')) return false;
               if (range === '12' && s.date.startsWith('2026-12')) return false;
-              if (range === '1' && s.date.startsWith('2027-01')) return false;
+              if (range === '1'  && s.date.startsWith('2027-01')) return false;
               return true;
             });
 
@@ -1850,6 +1850,7 @@
           showToast('年末年始(12/31〜1/3)を休校日に指定しました');
         } else if (type === 'sundays') {
           const monthsToProcess = [
+            { year: 2026, month: 8 },
             { year: 2026, month: 9 },
             { year: 2026, month: 10 },
             { year: 2026, month: 11 },
@@ -1865,7 +1866,7 @@
               }
             }
           });
-          showToast('10月〜1月の全日曜日を休校日に指定しました');
+          showToast('9月〜1月の全日曜日を休校日に指定しました');
         }
 
         renderHolidayList();
@@ -2013,7 +2014,7 @@
               PERIODS.forEach(p => {
                 const pShifts = shifts.filter(s => s.date === dateStr && s.period === p);
                 const names = pShifts.map(s => s.coach).join(' / ');
-                csvContent += `"${dateStr}","${dayOfWeekStr}","通常","${p}讲","${timetableTimes[p]}","${pShifts.length}","${names}"\n`;
+                csvContent += `"${dateStr}","${dayOfWeekStr}","通常","${p}講","${timetableTimes[p]}","${pShifts.length}","${names}"\n`;
               });
             }
           }
