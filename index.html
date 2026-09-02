@@ -67,9 +67,9 @@
           </div>
 
           <!-- Cloud Connection Status Badge -->
-          <span id="cloud-status-badge" class="md:hidden text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 flex-shrink-0">
-            <span id="cloud-status-dot-mob" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="cloud-status-text-mob">同期中</span>
+          <span id="cloud-status-badge" class="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 flex-shrink-0">
+            <span id="cloud-status-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="cloud-status-text">安全同期中</span>
           </span>
         </div>
 
@@ -112,9 +112,9 @@
 
         <!-- Action Buttons Bar -->
         <div class="flex items-center gap-1.5 pt-1 md:pt-0 border-t md:border-t-0 border-slate-100 justify-between md:justify-start">
-          <button onclick="manualSyncFromCloud()" class="inline-flex items-center justify-center p-1 md:px-2 md:py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition shadow-sm" title="手動同期">
+          <button onclick="manualSyncFromCloud()" class="inline-flex items-center justify-center p-1 md:px-2 md:py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition shadow-sm" title="最新状態に再同期">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-indigo-600"></i>
-            <span class="ml-1 text-[11px] hidden sm:inline">最新同期</span>
+            <span class="ml-1 text-[11px] hidden sm:inline">再読込</span>
           </button>
           <button onclick="openAddShiftModal()" class="flex-1 md:flex-initial inline-flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm truncate">
             <i data-lucide="plus" class="w-3.5 h-3.5 flex-shrink-0"></i>
@@ -379,7 +379,7 @@
       <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
         <div>
           <div class="flex items-center gap-1.5">
-            <h3 id="day-detail-title" class="text-xs sm:text-sm font-bold text-slate-800">2026年9月1日 (火) 出勤詳細</h3>
+            <h3 id="day-detail-title" class="text-xs sm:text-sm font-bold text-slate-800">出勤詳細</h3>
             <span id="day-holiday-badge" class="hidden text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full">休校日</span>
           </div>
           <p id="day-detail-subtitle" class="text-[10px] text-slate-500 mt-0.5">※あなたの名前以外の予定は保護されています。</p>
@@ -705,13 +705,14 @@
       let currentMonth = 8; // 8 = September
       let currentView = 'calendar';
       let isAdminMode = false;
-      let lastSyncTimestamp = 0;
       let syncTimer = null;
       let eventSource = null;
+      let isInitialSyncDone = false;
 
-      // Default shared room key
+      // Shared room identifier
       const roomId = 'kyotocenter';
 
+      // Default coach list
       let coachList = [
         "佐藤 健太", "鈴木 翔太", "高橋 蓮", "田中 拓海", "伊藤 陸",
         "渡辺 陽翔", "山本 颯太", "中村 樹", "小林 悠人", "加藤 大翔",
@@ -732,15 +733,31 @@
 
       let holidays = ["2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03"];
 
-      let shifts = [
-        { date: "2026-09-01", period: 2, coach: "佐藤 健太" },
-        { date: "2026-09-01", period: 2, coach: "鈴木 翔太" },
-        { date: "2026-09-01", period: 3, coach: "高橋 蓮" },
-        { date: "2026-09-01", period: 4, coach: "佐藤 健太" },
-        { date: "2026-09-02", period: 2, coach: "田中 拓海" },
-        { date: "2026-09-02", period: 3, coach: "伊藤 陸" },
-        { date: "2026-09-02", period: 5, coach: "渡辺 陽翔" }
-      ];
+      // Coach partitioned store: coachName -> { shifts: [{date, period}], updatedAt: number }
+      let coachShiftsStore = {};
+
+      // System timestamps for conflict resolution
+      let systemTimestamps = {
+        coachList: 0,
+        holidays: 0,
+        timetableTimes: 0
+      };
+
+      // Combined flat shifts array for views
+      let shifts = [];
+
+      function rebuildFlatShifts() {
+        const list = [];
+        Object.keys(coachShiftsStore).forEach(coach => {
+          const item = coachShiftsStore[coach];
+          if (item && Array.isArray(item.shifts)) {
+            item.shifts.forEach(s => {
+              list.push({ date: s.date, period: s.period, coach: coach });
+            });
+          }
+        });
+        shifts = list;
+      }
 
       function getStorage(key, fallback) {
         try {
@@ -758,83 +775,165 @@
       }
 
       function updateCloudStatus(online, text) {
-        const mobDot = document.getElementById('cloud-status-dot-mob');
-        const mobText = document.getElementById('cloud-status-text-mob');
-        if (mobText) mobText.textContent = text;
-        if (mobDot) {
-          mobDot.className = online 
+        const dot = document.getElementById('cloud-status-dot');
+        const txt = document.getElementById('cloud-status-text');
+        if (txt) txt.textContent = text;
+        if (dot) {
+          dot.className = online 
             ? "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" 
             : "w-1.5 h-1.5 rounded-full bg-amber-500";
         }
       }
 
-      function saveStateToCloud() {
-        setStorage('app_shifts_' + roomId, shifts);
+      // Save local storage
+      function persistLocalStorage() {
+        setStorage('app_coachStore_' + roomId, coachShiftsStore);
         setStorage('app_holidays_' + roomId, holidays);
         setStorage('app_coachList_' + roomId, coachList);
         setStorage('app_timetable_' + roomId, timetableTimes);
+        setStorage('app_sysTimestamps_' + roomId, systemTimestamps);
+      }
 
-        const now = Date.now();
-        lastSyncTimestamp = now;
+      // Send updates to cloud: individual coach patch or full administrative sync
+      function sendSyncPatch(patchData) {
+        persistLocalStorage();
+        if (!isInitialSyncDone) return; // Protect against sending before first pull
 
-        const statePayload = {
-          shifts,
-          holidays,
-          coachList,
-          timetableTimes,
-          timestamp: now
+        const payload = {
+          patchType: patchData.patchType, // 'coach' | 'admin' | 'full'
+          data: patchData,
+          sentAt: Date.now()
         };
 
         if (window.fetch) {
           fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId), {
             method: 'POST',
-            headers: { 'Title': 'ShiftSync' },
-            body: JSON.stringify(statePayload)
-          }).catch(function(err) {});
+            headers: { 'Title': 'ShiftPatch' },
+            body: JSON.stringify(payload)
+          }).catch(function() {});
         }
       }
 
-      function processNtfyMessage(rawText) {
-        if (!rawText) return;
-        const lines = rawText.trim().split('\n');
-        let latestData = null;
-        for (let i = lines.length - 1; i >= 0; i--) {
-          try {
-            const obj = JSON.parse(lines[i]);
-            if (obj && obj.message) {
-              const data = typeof obj.message === 'string' ? JSON.parse(obj.message) : obj.message;
-              if (data && data.timestamp) {
-                if (!latestData || data.timestamp > latestData.timestamp) {
-                  latestData = data;
-                }
-              }
+      // Push a specific coach's shifts safely
+      function syncCoachShifts(targetCoach) {
+        const targetData = coachShiftsStore[targetCoach] || { shifts: [], updatedAt: Date.now() };
+        sendSyncPatch({
+          patchType: 'coach',
+          coach: targetCoach,
+          shifts: targetData.shifts,
+          updatedAt: targetData.updatedAt
+        });
+      }
+
+      // Push administrative system changes
+      function syncAdminChanges(type) {
+        sendSyncPatch({
+          patchType: 'admin',
+          changeType: type, // 'coachList' | 'holidays' | 'timetable' | 'bulkReset'
+          coachList: coachList,
+          holidays: holidays,
+          timetableTimes: timetableTimes,
+          coachShiftsStore: (type === 'bulkReset' || type === 'coachDelete') ? coachShiftsStore : undefined,
+          updatedAt: Date.now()
+        });
+      }
+
+      // Merge received updates into local state without destroying others' data
+      function mergeIncomingPayload(payload) {
+        if (!payload || !payload.patchType) {
+          // Compatibility with legacy full-state payload
+          if (payload && Array.isArray(payload.shifts)) {
+            mergeLegacyShifts(payload);
+          }
+          return;
+        }
+
+        let hasChanges = false;
+
+        if (payload.patchType === 'coach') {
+          const patch = payload.data;
+          if (patch && patch.coach) {
+            const current = coachShiftsStore[patch.coach];
+            // Only update if incoming patch is newer or non-existent
+            if (!current || (patch.updatedAt && patch.updatedAt >= (current.updatedAt || 0))) {
+              coachShiftsStore[patch.coach] = {
+                shifts: Array.isArray(patch.shifts) ? patch.shifts : [],
+                updatedAt: patch.updatedAt || Date.now()
+              };
+              hasChanges = true;
             }
-          } catch(e) {}
+          }
+        } else if (payload.patchType === 'admin') {
+          const patch = payload.data;
+          if (patch) {
+            if (patch.coachList && patch.updatedAt >= (systemTimestamps.coachList || 0)) {
+              coachList = patch.coachList;
+              systemTimestamps.coachList = patch.updatedAt;
+              hasChanges = true;
+            }
+            if (patch.holidays && patch.updatedAt >= (systemTimestamps.holidays || 0)) {
+              holidays = patch.holidays;
+              systemTimestamps.holidays = patch.updatedAt;
+              hasChanges = true;
+            }
+            if (patch.timetableTimes && patch.updatedAt >= (systemTimestamps.timetableTimes || 0)) {
+              timetableTimes = patch.timetableTimes;
+              systemTimestamps.timetableTimes = patch.updatedAt;
+              hasChanges = true;
+            }
+            if (patch.coachShiftsStore && patch.updatedAt >= (systemTimestamps.coachShiftsStore || 0)) {
+              coachShiftsStore = patch.coachShiftsStore;
+              systemTimestamps.coachShiftsStore = patch.updatedAt;
+              hasChanges = true;
+            }
+          }
         }
-        if (latestData) {
-          applyStateUpdate(latestData);
-        }
-      }
 
-      function applyStateUpdate(latestData) {
-        if (latestData && latestData.timestamp > lastSyncTimestamp) {
-          lastSyncTimestamp = latestData.timestamp;
-          if (Array.isArray(latestData.shifts)) shifts = latestData.shifts;
-          if (Array.isArray(latestData.holidays)) holidays = latestData.holidays;
-          if (Array.isArray(latestData.coachList)) coachList = latestData.coachList;
-          if (latestData.timetableTimes) timetableTimes = latestData.timetableTimes;
-
-          setStorage('app_shifts_' + roomId, shifts);
-          setStorage('app_holidays_' + roomId, holidays);
-          setStorage('app_coachList_' + roomId, coachList);
-          setStorage('app_timetable_' + roomId, timetableTimes);
-
+        if (hasChanges) {
+          persistLocalStorage();
+          rebuildFlatShifts();
           validateCurrentCoachState();
           renderCoachChecklist();
           renderCalendar();
           populateCoachSelects();
+          renderTimetableDisplay();
           if (currentView === 'matrix') renderMatrixTable();
-          updateCloudStatus(true, '同期完了');
+          updateCloudStatus(true, '安全同期完了');
+        }
+      }
+
+      function mergeLegacyShifts(legacyData) {
+        if (!Array.isArray(legacyData.shifts)) return;
+        // Group legacy array into partitioned store
+        legacyData.shifts.forEach(s => {
+          if (!coachShiftsStore[s.coach]) {
+            coachShiftsStore[s.coach] = { shifts: [], updatedAt: legacyData.timestamp || 1 };
+          }
+          const exists = coachShiftsStore[s.coach].shifts.some(p => p.date === s.date && p.period === s.period);
+          if (!exists) {
+            coachShiftsStore[s.coach].shifts.push({ date: s.date, period: s.period });
+          }
+        });
+        if (Array.isArray(legacyData.coachList)) coachList = legacyData.coachList;
+        if (Array.isArray(legacyData.holidays)) holidays = legacyData.holidays;
+        if (legacyData.timetableTimes) timetableTimes = legacyData.timetableTimes;
+
+        persistLocalStorage();
+        rebuildFlatShifts();
+        renderCalendar();
+      }
+
+      function processIncomingRawText(rawText) {
+        if (!rawText) return;
+        const lines = rawText.trim().split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          try {
+            const obj = JSON.parse(lines[i]);
+            if (obj && obj.message) {
+              const data = typeof obj.message === 'string' ? JSON.parse(obj.message) : obj.message;
+              mergeIncomingPayload(data);
+            }
+          } catch(e) {}
         }
       }
 
@@ -844,39 +943,84 @@
           try { eventSource.close(); } catch(e){}
         }
 
-        const localShifts = getStorage('app_shifts_' + roomId, null);
-        if (localShifts) shifts = localShifts;
+        // 1. Load local cache
+        const localStore = getStorage('app_coachStore_' + roomId, null);
+        if (localStore && typeof localStore === 'object') {
+          coachShiftsStore = localStore;
+        } else {
+          // Initialize default sample data only once if totally empty
+          coachShiftsStore = {
+            "佐藤 健太": {
+              shifts: [
+                { date: "2026-09-01", period: 2 },
+                { date: "2026-09-01", period: 4 }
+              ],
+              updatedAt: 1
+            },
+            "鈴木 翔太": {
+              shifts: [{ date: "2026-09-01", period: 2 }],
+              updatedAt: 1
+            },
+            "高橋 蓮": {
+              shifts: [{ date: "2026-09-01", period: 3 }],
+              updatedAt: 1
+            },
+            "田中 拓海": {
+              shifts: [{ date: "2026-09-02", period: 2 }],
+              updatedAt: 1
+            },
+            "伊藤 陸": {
+              shifts: [{ date: "2026-09-02", period: 3 }],
+              updatedAt: 1
+            },
+            "渡辺 陽翔": {
+              shifts: [{ date: "2026-09-02", period: 5 }],
+              updatedAt: 1
+            }
+          };
+        }
+
         const localHolidays = getStorage('app_holidays_' + roomId, null);
         if (localHolidays) holidays = localHolidays;
         const localCoaches = getStorage('app_coachList_' + roomId, null);
         if (localCoaches) coachList = localCoaches;
         const localTimetable = getStorage('app_timetable_' + roomId, null);
         if (localTimetable) timetableTimes = localTimetable;
+        const localSysTimestamps = getStorage('app_sysTimestamps_' + roomId, null);
+        if (localSysTimestamps) systemTimestamps = localSysTimestamps;
 
+        rebuildFlatShifts();
         validateCurrentCoachState();
         renderCoachChecklist();
         renderCalendar();
         populateCoachSelects();
+        renderTimetableDisplay();
         if (currentView === 'matrix') renderMatrixTable();
 
+        // 2. Fetch remote backlog
         if (window.fetch) {
           fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
             .then(res => res.text())
             .then(text => {
-              processNtfyMessage(text);
-              updateCloudStatus(true, '同期中');
+              processIncomingRawText(text);
+              isInitialSyncDone = true;
+              updateCloudStatus(true, '安全同期中');
             })
             .catch(err => {
-              updateCloudStatus(false, '接続待機');
+              isInitialSyncDone = true;
+              updateCloudStatus(false, 'オフライン');
             });
+        } else {
+          isInitialSyncDone = true;
         }
 
+        // 3. Connect real-time SSE stream
         if (window.EventSource) {
           try {
             eventSource = new EventSource('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/sse');
             
             eventSource.onopen = function() {
-              updateCloudStatus(true, '同期中');
+              updateCloudStatus(true, '安全同期中');
             };
 
             eventSource.onmessage = function(e) {
@@ -885,7 +1029,7 @@
                 const obj = JSON.parse(e.data);
                 if (obj && obj.message) {
                   const data = typeof obj.message === 'string' ? JSON.parse(obj.message) : obj.message;
-                  applyStateUpdate(data);
+                  mergeIncomingPayload(data);
                 }
               } catch(err) {}
             };
@@ -896,15 +1040,16 @@
           } catch(e) {}
         }
 
+        // 4. Periodic keep-alive & poll
         syncTimer = setInterval(function() {
           if (!window.fetch) return;
           fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
             .then(res => res.text())
             .then(text => {
-              processNtfyMessage(text);
+              processIncomingRawText(text);
             })
             .catch(err => {});
-        }, 20000);
+        }, 15000);
       }
 
       document.addEventListener('visibilitychange', function() {
@@ -917,7 +1062,7 @@
       });
 
       window.manualSyncFromCloud = function() {
-        showToast('データを同期中...');
+        showToast('最新データを再取得中...');
         initUniversalSyncEngine();
       };
 
@@ -1215,6 +1360,10 @@
           selectedCoaches.push(newName);
         }
 
+        if (!coachShiftsStore[newName]) {
+          coachShiftsStore[newName] = { shifts: [], updatedAt: Date.now() };
+        }
+
         if (!myCoach || myCoach === '未設定') {
           myCoach = newName;
           setStorage('myCoach', myCoach);
@@ -1228,7 +1377,8 @@
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
         
-        saveStateToCloud();
+        systemTimestamps.coachList = Date.now();
+        syncAdminChanges('coachList');
         showToast(`「${newName}」を追加しました`);
       };
 
@@ -1262,15 +1412,20 @@
           renderMyCoachDisplay();
         }
 
-        shifts = shifts.map(s => s.coach === oldName ? { ...s, coach: newName } : s);
+        if (coachShiftsStore[oldName]) {
+          coachShiftsStore[newName] = coachShiftsStore[oldName];
+          delete coachShiftsStore[oldName];
+        }
 
+        rebuildFlatShifts();
         renderManageCoachList();
         renderCoachChecklist();
         populateCoachSelects();
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
 
-        saveStateToCloud();
+        systemTimestamps.coachList = Date.now();
+        syncAdminChanges('coachList');
         showToast(`「${oldName}」を「${newName}」に変更しました`);
       };
 
@@ -1288,8 +1443,9 @@
           function() {
             coachList.splice(index, 1);
             selectedCoaches = selectedCoaches.filter(c => c !== targetCoach);
-            shifts = shifts.filter(s => s.coach !== targetCoach);
+            delete coachShiftsStore[targetCoach];
 
+            rebuildFlatShifts();
             validateCurrentCoachState();
             renderManageCoachList();
             renderCoachChecklist();
@@ -1297,7 +1453,8 @@
             renderCalendar();
             if (currentView === 'matrix') renderMatrixTable();
 
-            saveStateToCloud();
+            systemTimestamps.coachList = Date.now();
+            syncAdminChanges('coachDelete');
             showToast(`「${targetCoach}」さんを削除しました`);
           }
         );
@@ -1321,6 +1478,7 @@
             const deletedCount = coachList.length;
             coachList = [];
             selectedCoaches = [];
+            coachShiftsStore = {};
             shifts = [];
             myCoach = '未設定';
             setStorage('myCoach', myCoach);
@@ -1332,7 +1490,9 @@
             renderCalendar();
             if (currentView === 'matrix') renderMatrixTable();
 
-            saveStateToCloud();
+            systemTimestamps.coachList = Date.now();
+            systemTimestamps.coachShiftsStore = Date.now();
+            syncAdminChanges('bulkReset');
             showToast(`コーチ全${deletedCount}名を一括削除しました`);
           }
         );
@@ -1625,11 +1785,12 @@
           showToast('休校日に設定しました');
         }
         
+        systemTimestamps.holidays = Date.now();
+        syncAdminChanges('holidays');
+
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
         openDayDetail(currentDetailDate);
-
-        saveStateToCloud();
       };
 
       window.removeShift = function(dateStr, period, coach) {
@@ -1637,13 +1798,20 @@
           showToast('他人の出勤データは削除できません');
           return;
         }
-        shifts = shifts.filter(s => !(s.date === dateStr && s.period === period && s.coach === coach));
-        
+
+        if (!coachShiftsStore[coach]) return;
+
+        coachShiftsStore[coach].shifts = coachShiftsStore[coach].shifts.filter(
+          s => !(s.date === dateStr && s.period === period)
+        );
+        coachShiftsStore[coach].updatedAt = Date.now();
+
+        rebuildFlatShifts();
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
         openDayDetail(dateStr);
 
-        saveStateToCloud();
+        syncCoachShifts(coach);
         showToast(`${coach}さんの ${period}講 を削除しました`);
       };
 
@@ -1674,19 +1842,26 @@
           return;
         }
 
+        if (!coachShiftsStore[coach]) {
+          coachShiftsStore[coach] = { shifts: [], updatedAt: Date.now() };
+        }
+
         checkboxes.forEach(cb => {
           const period = parseInt(cb.value, 10);
-          const exists = shifts.some(s => s.date === date && s.period === period && s.coach === coach);
+          const exists = coachShiftsStore[coach].shifts.some(s => s.date === date && s.period === period);
           if (!exists) {
-            shifts.push({ date, period, coach });
+            coachShiftsStore[coach].shifts.push({ date, period });
           }
         });
+
+        coachShiftsStore[coach].updatedAt = Date.now();
+        rebuildFlatShifts();
 
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
         closeModal('modal-add-shift');
 
-        saveStateToCloud();
+        syncCoachShifts(coach);
         showToast(`${coach}さんの出勤コマを追加しました`);
       };
 
@@ -1740,22 +1915,29 @@
           }
         });
 
+        if (!coachShiftsStore[targetCoach]) {
+          coachShiftsStore[targetCoach] = { shifts: [], updatedAt: Date.now() };
+        }
+
         let addedCount = 0;
         datesToProcess.forEach(dateStr => {
           selectedPeriods.forEach(p => {
-            const exists = shifts.some(s => s.date === dateStr && s.period === p && s.coach === targetCoach);
+            const exists = coachShiftsStore[targetCoach].shifts.some(s => s.date === dateStr && s.period === p);
             if (!exists) {
-              shifts.push({ date: dateStr, period: p, coach: targetCoach });
+              coachShiftsStore[targetCoach].shifts.push({ date: dateStr, period: p });
               addedCount++;
             }
           });
         });
 
+        coachShiftsStore[targetCoach].updatedAt = Date.now();
+        rebuildFlatShifts();
+
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
         closeModal('modal-bulk');
 
-        saveStateToCloud();
+        syncCoachShifts(targetCoach);
         showToast(`${targetCoach}さんの出勤コマを一括登録しました (${addedCount}件)`);
       };
 
@@ -1765,6 +1947,11 @@
 
         if (!targetCoach || targetCoach === '未設定') {
           showToast('対象のコーチを選択してください');
+          return;
+        }
+
+        if (!coachShiftsStore[targetCoach]) {
+          showToast('登録されているシフトがありません');
           return;
         }
 
@@ -1779,22 +1966,27 @@
           '出勤データの一括削除',
           `「${targetCoach}」さんの ${rangeText} の出勤データのみ全消去しますか？`,
           function() {
-            shifts = shifts.filter(s => {
-              if (s.coach !== targetCoach) return true;
-              if (range === 'all') return false;
-              if (range === '9'  && s.date.startsWith('2026-09')) return false;
-              if (range === '10' && s.date.startsWith('2026-10')) return false;
-              if (range === '11' && s.date.startsWith('2026-11')) return false;
-              if (range === '12' && s.date.startsWith('2026-12')) return false;
-              if (range === '1'  && s.date.startsWith('2027-01')) return false;
-              return true;
-            });
+            if (range === 'all') {
+              coachShiftsStore[targetCoach].shifts = [];
+            } else {
+              coachShiftsStore[targetCoach].shifts = coachShiftsStore[targetCoach].shifts.filter(s => {
+                if (range === '9'  && s.date.startsWith('2026-09')) return false;
+                if (range === '10' && s.date.startsWith('2026-10')) return false;
+                if (range === '11' && s.date.startsWith('2026-11')) return false;
+                if (range === '12' && s.date.startsWith('2026-12')) return false;
+                if (range === '1'  && s.date.startsWith('2027-01')) return false;
+                return true;
+              });
+            }
+
+            coachShiftsStore[targetCoach].updatedAt = Date.now();
+            rebuildFlatShifts();
 
             renderCalendar();
             if (currentView === 'matrix') renderMatrixTable();
             closeModal('modal-bulk');
 
-            saveStateToCloud();
+            syncCoachShifts(targetCoach);
             showToast(`「${targetCoach}」さんの予定を消去しました`);
           }
         );
@@ -1833,11 +2025,13 @@
 
       window.removeHoliday = function(dateStr) {
         holidays = holidays.filter(d => d !== dateStr);
+        systemTimestamps.holidays = Date.now();
+        syncAdminChanges('holidays');
+
         renderHolidayList();
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
 
-        saveStateToCloud();
         showToast(`${dateStr} の休校指定を解除しました`);
       };
 
@@ -1869,11 +2063,12 @@
           showToast('9月〜1月の全日曜日を休校日に指定しました');
         }
 
+        systemTimestamps.holidays = Date.now();
+        syncAdminChanges('holidays');
+
         renderHolidayList();
         renderCalendar();
         if (currentView === 'matrix') renderMatrixTable();
-
-        saveStateToCloud();
       };
 
       window.openTimetableModal = function() {
@@ -1887,10 +2082,11 @@
         timetableTimes[5] = document.getElementById('tt-time-5')?.value || timetableTimes[5];
         timetableTimes[6] = document.getElementById('tt-time-6')?.value || timetableTimes[6];
         
+        systemTimestamps.timetableTimes = Date.now();
+        syncAdminChanges('timetable');
+
         renderTimetableDisplay();
         closeModal('modal-edit-timetable');
-
-        saveStateToCloud();
         showToast('時間割を更新しました');
       };
 
