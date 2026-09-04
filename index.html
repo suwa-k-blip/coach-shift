@@ -704,10 +704,10 @@
       let isAdminMode = false;
       let eventSource = null;
       let sseReconnectTimer = null;
-      let watchdogTimer = null;
+      let syncDebounceTimer = null;
 
-      // Clean dedicated channel (v6) - avoids old corrupt/delete messages
-      const roomId = 'coach_shift_kyoto_v6_clean';
+      // Ultra-optimized high density channel (v7)
+      const roomId = 'coach_shift_kyoto_v7_opt';
 
       let coachList = [];
       let selectedCoaches = [];
@@ -725,9 +725,109 @@
 
       // Coach partitioned store: coachName -> { shifts: [{date, period}], updatedAt: number }
       let coachShiftsStore = {};
-
-      let lastSystemTimestamp = 0;
       let shifts = [];
+
+      // --- Micro Encoding Helpers (Compresses 50 bytes down to 5 bytes per shift) ---
+      // "2026-09-05", 2  => "09052"
+      // "2027-01-15", 4  => "01154"
+      function encodeShift(dateStr, period) {
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return null;
+        return `${parts[1]}${parts[2]}${period}`;
+      }
+
+      function decodeShift(code) {
+        if (!code || code.length < 5) return null;
+        const m = code.substring(0, 2);
+        const d = code.substring(2, 4);
+        const p = parseInt(code.substring(4), 10);
+        const y = (m === '01') ? '2027' : '2026';
+        return {
+          date: `${y}-${m}-${d}`,
+          period: p
+        };
+      }
+
+      // Compact payload builder
+      function buildCompactSnapshot() {
+        const compactCs = {};
+        Object.keys(coachShiftsStore).forEach(coach => {
+          const item = coachShiftsStore[coach];
+          if (item && Array.isArray(item.shifts)) {
+            const codes = [];
+            item.shifts.forEach(s => {
+              const c = encodeShift(s.date, s.period);
+              if (c) codes.push(c);
+            });
+            compactCs[coach] = codes.join(',');
+          }
+        });
+
+        // Compact holidays: "2026-12-31" => "1231"
+        const compactHolidays = holidays.map(h => {
+          const p = h.split('-');
+          return p.length === 3 ? `${p[1]}${p[2]}` : h;
+        });
+
+        return {
+          v: 7,
+          cl: coachList,
+          cs: compactCs,
+          h: compactHolidays,
+          tt: timetableTimes,
+          ts: Date.now()
+        };
+      }
+
+      function parseCompactSnapshot(payload) {
+        if (!payload || typeof payload !== 'object') return false;
+
+        // Restore coach list
+        if (Array.isArray(payload.cl)) {
+          coachList = payload.cl;
+        }
+
+        // Restore compact coach shifts
+        if (payload.cs && typeof payload.cs === 'object') {
+          const newStore = {};
+          Object.keys(payload.cs).forEach(coach => {
+            const str = payload.cs[coach];
+            const expandedShifts = [];
+            if (typeof str === 'string' && str.length > 0) {
+              const tokens = str.split(',');
+              tokens.forEach(tok => {
+                const s = decodeShift(tok);
+                if (s) expandedShifts.push(s);
+              });
+            }
+            newStore[coach] = {
+              shifts: expandedShifts,
+              updatedAt: Date.now()
+            };
+            if (!coachList.includes(coach)) coachList.push(coach);
+          });
+          coachShiftsStore = newStore;
+        }
+
+        // Restore holidays
+        if (Array.isArray(payload.h)) {
+          holidays = payload.h.map(code => {
+            if (code.length === 4) {
+              const m = code.substring(0, 2);
+              const d = code.substring(2, 4);
+              const y = (m === '01') ? '2027' : '2026';
+              return `${y}-${m}-${d}`;
+            }
+            return code;
+          });
+        }
+
+        if (payload.tt && typeof payload.tt === 'object') {
+          timetableTimes = payload.tt;
+        }
+
+        return true;
+      }
 
       function rebuildFlatShifts() {
         const list = [];
@@ -790,109 +890,76 @@
         setStorage('app_holidays_' + roomId, holidays);
         setStorage('app_coachList_' + roomId, coachList);
         setStorage('app_timetable_' + roomId, timetableTimes);
-        setStorage('app_sysTs_' + roomId, lastSystemTimestamp);
         setStorage('myCoach', myCoach);
         setStorage('selectedCoaches', selectedCoaches);
       }
 
-      async function broadcastFullSnapshot() {
+      // Debounced safe broadcast to prevent rate limits & buffer overruns
+      function broadcastFullSnapshot() {
         persistLocalStorage();
-        lastSystemTimestamp = Date.now();
 
-        const payload = {
-          t: 'full',
-          cl: coachList,
-          cs: coachShiftsStore,
-          h: holidays,
-          tt: timetableTimes,
-          ts: lastSystemTimestamp
-        };
+        clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = setTimeout(async () => {
+          const payload = buildCompactSnapshot();
+          const jsonString = JSON.stringify(payload);
 
-        if (window.fetch) {
-          updateCloudStatus('syncing', 'クラウド同期中');
-          try {
-            const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId), {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain' },
-              body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-              updateCloudStatus('online', '同期完了');
-            } else {
-              updateCloudStatus('online', '再接続待機');
+          if (window.fetch) {
+            updateCloudStatus('syncing', 'クラウド同期中');
+            try {
+              const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId), {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'text/plain; charset=utf-8',
+                  'X-Title': 'ShiftUpdate'
+                },
+                body: jsonString
+              });
+              if (res.ok) {
+                updateCloudStatus('online', '同期完了');
+              } else if (res.status === 429) {
+                updateCloudStatus('syncing', '通信制限待機中');
+              } else {
+                updateCloudStatus('online', 'ローカル保存済');
+              }
+            } catch(err) {
+              updateCloudStatus('online', 'ローカル保持');
             }
-          } catch(err) {
-            updateCloudStatus('online', 'ローカル保持');
           }
-        }
+        }, 300); // 300ms debounce
       }
 
       function mergeIncomingPayload(data) {
         if (!data) return;
 
-        // Full snapshot mode: eliminates past ordering or missing patch bugs
-        if (data.t === 'full' && data.ts && data.ts > (lastSystemTimestamp - 500)) {
-          if (Array.isArray(data.cl)) coachList = data.cl;
-          if (data.cs && typeof data.cs === 'object') coachShiftsStore = data.cs;
-          if (Array.isArray(data.h)) holidays = data.h;
-          if (data.tt && typeof data.tt === 'object') timetableTimes = data.tt;
-          lastSystemTimestamp = data.ts;
+        const success = parseCompactSnapshot(data);
+        if (!success) return;
 
-          persistLocalStorage();
-          rebuildFlatShifts();
-          validateCurrentCoachState();
-          renderCoachChecklist();
-          renderCalendar();
-          populateCoachSelects();
-          renderTimetableDisplay();
-          if (currentView === 'matrix') renderMatrixTable();
-          updateCloudStatus('online', '同期完了');
-          return;
-        }
-
-        // Backward-compatible coach patch support
-        if (data.t === 'c' && data.d && data.d.c) {
-          const patch = data.d;
-          const current = coachShiftsStore[patch.c];
-          if (!current || (patch.u && patch.u >= (current.updatedAt || 0))) {
-            const expandedShifts = [];
-            if (Array.isArray(patch.s)) {
-              patch.s.forEach(str => {
-                const parts = str.split('_');
-                if (parts.length === 2) {
-                  expandedShifts.push({ date: parts[0], period: parseInt(parts[1], 10) });
-                }
-              });
-            }
-            coachShiftsStore[patch.c] = {
-              shifts: expandedShifts,
-              updatedAt: patch.u || Date.now()
-            };
-
-            if (!coachList.includes(patch.c)) coachList.push(patch.c);
-            if (!selectedCoaches.includes(patch.c)) selectedCoaches.push(patch.c);
-
-            persistLocalStorage();
-            rebuildFlatShifts();
-            validateCurrentCoachState();
-            renderCoachChecklist();
-            renderCalendar();
-            populateCoachSelects();
-            if (currentView === 'matrix') renderMatrixTable();
-            updateCloudStatus('online', '同期完了');
-          }
-        }
+        persistLocalStorage();
+        rebuildFlatShifts();
+        validateCurrentCoachState();
+        renderCoachChecklist();
+        renderCalendar();
+        populateCoachSelects();
+        renderManageCoachList();
+        renderMyCoachDisplay();
+        renderTimetableDisplay();
+        if (currentView === 'matrix') renderMatrixTable();
+        updateCloudStatus('online', '同期完了');
       }
 
       function processIncomingRawText(rawText) {
         if (!rawText) return;
         const lines = rawText.trim().split('\n');
-        for (let i = 0; i < lines.length; i++) {
+        // Apply the latest valid payload
+        for (let i = lines.length - 1; i >= 0; i--) {
           try {
             const obj = JSON.parse(lines[i]);
             if (obj && obj.message) {
               const data = typeof obj.message === 'string' ? JSON.parse(obj.message) : obj.message;
-              mergeIncomingPayload(data);
+              if (data && data.v === 7) {
+                mergeIncomingPayload(data);
+                break; // Found newest valid snapshot
+              }
             }
           } catch(e) {}
         }
@@ -931,18 +998,20 @@
               const obj = JSON.parse(e.data);
               if (obj && obj.message) {
                 const data = typeof obj.message === 'string' ? JSON.parse(obj.message) : obj.message;
-                mergeIncomingPayload(data);
+                if (data && data.v === 7) {
+                  mergeIncomingPayload(data);
+                }
               }
             } catch(err) {}
           };
 
           eventSource.onerror = function() {
-            updateCloudStatus('syncing', '再接続中...');
+            updateCloudStatus('syncing', '自動再接続中');
             try { eventSource.close(); } catch(e) {}
             eventSource = null;
 
             clearTimeout(sseReconnectTimer);
-            sseReconnectTimer = setTimeout(connectSSEStream, 3000);
+            sseReconnectTimer = setTimeout(connectSSEStream, 4000);
           };
         } catch(e) {
           clearTimeout(sseReconnectTimer);
@@ -963,9 +1032,6 @@
         const localTimetable = getStorage('app_timetable_' + roomId, null);
         if (localTimetable) timetableTimes = localTimetable;
 
-        const localTs = getStorage('app_sysTs_' + roomId, 0);
-        if (localTs) lastSystemTimestamp = localTs;
-
         rebuildFlatShifts();
         validateCurrentCoachState();
         renderCoachChecklist();
@@ -976,13 +1042,6 @@
 
         pullLatestFromCloud();
         connectSSEStream();
-
-        if (watchdogTimer) clearInterval(watchdogTimer);
-        watchdogTimer = setInterval(() => {
-          if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
-            connectSSEStream();
-          }
-        }, 15000);
       }
 
       document.addEventListener('visibilitychange', function() {
@@ -995,14 +1054,13 @@
       });
 
       window.addEventListener('focus', function() {
-        pullLatestFromCloud();
         if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
           connectSSEStream();
         }
       });
 
       window.manualSyncFromCloud = function() {
-        showToast('最新データを再取得しています...');
+        showToast('最新データを取得中...');
         pullLatestFromCloud();
         connectSSEStream();
       };
