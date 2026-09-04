@@ -1955,7 +1955,6 @@
 
         coachShiftsStore[coach].updatedAt = Date.now();
 
-        // 1. Ensure coach is included in coachList and visible on calendar
         if (!coachList.includes(coach)) coachList.push(coach);
         if (!selectedCoaches.includes(coach)) {
           selectedCoaches.push(coach);
@@ -1965,7 +1964,6 @@
 
         rebuildFlatShifts();
 
-        // 2. Automatically jump to the month of the added shift so user immediately sees it!
         const [targetY, targetM] = date.split('-').map(Number);
         if (currentYear !== targetY || currentMonth !== (targetM - 1)) {
           currentYear = targetY;
@@ -1977,18 +1975,10 @@
         if (currentView === 'matrix') renderMatrixTable();
         closeModal('modal-add-shift');
 
-        // Reset checked boxes for clean next use
         checkboxes.forEach(cb => cb.checked = false);
 
         broadcastFullSnapshot();
         showToast(`${coach}さんの出勤コマを追加しました`);
-      };
-
-      window.openBulkModal = function() {
-        populateCoachSelects();
-        const bulkSel = document.getElementById('bulk-coach-select');
-        if (bulkSel) bulkSel.value = myCoach;
-        openModal('modal-bulk');
       };
 
       window.handleBulkRegister = function(e) {
@@ -2051,7 +2041,6 @@
 
         coachShiftsStore[targetCoach].updatedAt = Date.now();
 
-        // Ensure coach is active in filter
         if (!coachList.includes(targetCoach)) coachList.push(targetCoach);
         if (!selectedCoaches.includes(targetCoach)) {
           selectedCoaches.push(targetCoach);
