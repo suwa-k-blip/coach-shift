@@ -705,12 +705,11 @@
       let currentMonth = 8; // 8 = September
       let currentView = 'calendar';
       let isAdminMode = false;
-      let syncTimer = null;
       let eventSource = null;
       let isInitialSyncDone = false;
 
-      // Shared room identifier
-      const roomId = 'kyotocenter';
+      // Clean dedicated channel
+      const roomId = 'coach_kyoto_v4';
 
       // Default coach list
       let coachList = [
@@ -736,14 +735,12 @@
       // Coach partitioned store: coachName -> { shifts: [{date, period}], updatedAt: number }
       let coachShiftsStore = {};
 
-      // System timestamps for conflict resolution
       let systemTimestamps = {
         coachList: 0,
         holidays: 0,
         timetableTimes: 0
       };
 
-      // Combined flat shifts array for views
       let shifts = [];
 
       function rebuildFlatShifts() {
@@ -774,18 +771,25 @@
         } catch(e) {}
       }
 
-      function updateCloudStatus(online, text) {
+      function updateCloudStatus(status, text) {
         const dot = document.getElementById('cloud-status-dot');
         const txt = document.getElementById('cloud-status-text');
+        const badge = document.getElementById('cloud-status-badge');
         if (txt) txt.textContent = text;
-        if (dot) {
-          dot.className = online 
-            ? "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" 
-            : "w-1.5 h-1.5 rounded-full bg-amber-500";
+        if (!dot || !badge) return;
+
+        if (status === 'online') {
+          dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+          badge.className = "text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 flex-shrink-0";
+        } else if (status === 'syncing') {
+          dot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping";
+          badge.className = "text-[9px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 flex-shrink-0";
+        } else {
+          dot.className = "w-1.5 h-1.5 rounded-full bg-slate-400";
+          badge.className = "text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1 flex-shrink-0";
         }
       }
 
-      // Save local storage
       function persistLocalStorage() {
         setStorage('app_coachStore_' + roomId, coachShiftsStore);
         setStorage('app_holidays_' + roomId, holidays);
@@ -794,96 +798,94 @@
         setStorage('app_sysTimestamps_' + roomId, systemTimestamps);
       }
 
-      // Send updates to cloud: individual coach patch or full administrative sync
+      // Compact payload sender (strictly fits under 4KB)
       function sendSyncPatch(patchData) {
         persistLocalStorage();
-        if (!isInitialSyncDone) return; // Protect against sending before first pull
 
         const payload = {
-          patchType: patchData.patchType, // 'coach' | 'admin' | 'full'
-          data: patchData,
-          sentAt: Date.now()
+          t: patchData.patchType, // 'c' for coach, 'a' for admin
+          d: patchData,
+          ts: Date.now()
         };
 
         if (window.fetch) {
-          fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId), {
+          updateCloudStatus('syncing', '同期待機中');
+          fetch('https://ntfy.sh/' + encodeURIComponent(roomId), {
             method: 'POST',
-            headers: { 'Title': 'ShiftPatch' },
             body: JSON.stringify(payload)
-          }).catch(function() {});
+          })
+          .then(() => updateCloudStatus('online', '同期完了'))
+          .catch(() => updateCloudStatus('offline', 'ローカル保持'));
         }
       }
 
-      // Push a specific coach's shifts safely
+      // Push specific coach shifts in micro format: "YYYY-MM-DD_P"
       function syncCoachShifts(targetCoach) {
         const targetData = coachShiftsStore[targetCoach] || { shifts: [], updatedAt: Date.now() };
+        const compactShifts = targetData.shifts.map(s => `${s.date}_${s.period}`);
+
         sendSyncPatch({
-          patchType: 'coach',
-          coach: targetCoach,
-          shifts: targetData.shifts,
-          updatedAt: targetData.updatedAt
+          patchType: 'c',
+          c: targetCoach,
+          s: compactShifts,
+          u: targetData.updatedAt
         });
       }
 
-      // Push administrative system changes
       function syncAdminChanges(type) {
         sendSyncPatch({
-          patchType: 'admin',
-          changeType: type, // 'coachList' | 'holidays' | 'timetable' | 'bulkReset'
-          coachList: coachList,
-          holidays: holidays,
-          timetableTimes: timetableTimes,
-          coachShiftsStore: (type === 'bulkReset' || type === 'coachDelete') ? coachShiftsStore : undefined,
-          updatedAt: Date.now()
+          patchType: 'a',
+          ct: type,
+          cl: coachList,
+          h: holidays,
+          tt: timetableTimes,
+          u: Date.now()
         });
       }
 
-      // Merge received updates into local state without destroying others' data
+      // Merge lightweight payload safely
       function mergeIncomingPayload(payload) {
-        if (!payload || !payload.patchType) {
-          // Compatibility with legacy full-state payload
-          if (payload && Array.isArray(payload.shifts)) {
-            mergeLegacyShifts(payload);
-          }
-          return;
-        }
+        if (!payload || !payload.t) return;
 
         let hasChanges = false;
 
-        if (payload.patchType === 'coach') {
-          const patch = payload.data;
-          if (patch && patch.coach) {
-            const current = coachShiftsStore[patch.coach];
-            // Only update if incoming patch is newer or non-existent
-            if (!current || (patch.updatedAt && patch.updatedAt >= (current.updatedAt || 0))) {
-              coachShiftsStore[patch.coach] = {
-                shifts: Array.isArray(patch.shifts) ? patch.shifts : [],
-                updatedAt: patch.updatedAt || Date.now()
+        if (payload.t === 'c') {
+          const patch = payload.d;
+          if (patch && patch.c) {
+            const current = coachShiftsStore[patch.c];
+            if (!current || (patch.u && patch.u >= (current.updatedAt || 0))) {
+              const expandedShifts = [];
+              if (Array.isArray(patch.s)) {
+                patch.s.forEach(str => {
+                  const parts = str.split('_');
+                  if (parts.length === 2) {
+                    expandedShifts.push({ date: parts[0], period: parseInt(parts[1], 10) });
+                  }
+                });
+              }
+              coachShiftsStore[patch.c] = {
+                shifts: expandedShifts,
+                updatedAt: patch.u || Date.now()
               };
               hasChanges = true;
             }
           }
-        } else if (payload.patchType === 'admin') {
-          const patch = payload.data;
+        } else if (payload.t === 'a') {
+          const patch = payload.d;
           if (patch) {
-            if (patch.coachList && patch.updatedAt >= (systemTimestamps.coachList || 0)) {
-              coachList = patch.coachList;
-              systemTimestamps.coachList = patch.updatedAt;
+            if (patch.cl && patch.u >= (systemTimestamps.coachList || 0)) {
+              coachList = patch.cl;
+              systemTimestamps.coachList = patch.u;
               hasChanges = true;
             }
-            if (patch.holidays && patch.updatedAt >= (systemTimestamps.holidays || 0)) {
-              holidays = patch.holidays;
-              systemTimestamps.holidays = patch.updatedAt;
+            if (patch.h && patch.u >= (systemTimestamps.holidays || 0)) {
+              holidays = patch.h;
+              systemTimestamps.holidays = patch.u;
               hasChanges = true;
             }
-            if (patch.timetableTimes && patch.updatedAt >= (systemTimestamps.timetableTimes || 0)) {
-              timetableTimes = patch.timetableTimes;
-              systemTimestamps.timetableTimes = patch.updatedAt;
-              hasChanges = true;
-            }
-            if (patch.coachShiftsStore && patch.updatedAt >= (systemTimestamps.coachShiftsStore || 0)) {
-              coachShiftsStore = patch.coachShiftsStore;
-              systemTimestamps.coachShiftsStore = patch.updatedAt;
+            if (patch.tt && patch.u >= (systemTimestamps.timetableTimes || 0)) {
+              timetableTimes = patch.tt;
+              systemTimestamps.timetableTimes = patch.u;
               hasChanges = true;
             }
           }
@@ -898,29 +900,8 @@
           populateCoachSelects();
           renderTimetableDisplay();
           if (currentView === 'matrix') renderMatrixTable();
-          updateCloudStatus(true, '安全同期完了');
+          updateCloudStatus('online', '最新状態');
         }
-      }
-
-      function mergeLegacyShifts(legacyData) {
-        if (!Array.isArray(legacyData.shifts)) return;
-        // Group legacy array into partitioned store
-        legacyData.shifts.forEach(s => {
-          if (!coachShiftsStore[s.coach]) {
-            coachShiftsStore[s.coach] = { shifts: [], updatedAt: legacyData.timestamp || 1 };
-          }
-          const exists = coachShiftsStore[s.coach].shifts.some(p => p.date === s.date && p.period === s.period);
-          if (!exists) {
-            coachShiftsStore[s.coach].shifts.push({ date: s.date, period: s.period });
-          }
-        });
-        if (Array.isArray(legacyData.coachList)) coachList = legacyData.coachList;
-        if (Array.isArray(legacyData.holidays)) holidays = legacyData.holidays;
-        if (legacyData.timetableTimes) timetableTimes = legacyData.timetableTimes;
-
-        persistLocalStorage();
-        rebuildFlatShifts();
-        renderCalendar();
       }
 
       function processIncomingRawText(rawText) {
@@ -938,7 +919,6 @@
       }
 
       function initUniversalSyncEngine() {
-        if (syncTimer) clearInterval(syncTimer);
         if (eventSource) {
           try { eventSource.close(); } catch(e){}
         }
@@ -948,36 +928,7 @@
         if (localStore && typeof localStore === 'object') {
           coachShiftsStore = localStore;
         } else {
-          // Initialize default sample data only once if totally empty
-          coachShiftsStore = {
-            "佐藤 健太": {
-              shifts: [
-                { date: "2026-09-01", period: 2 },
-                { date: "2026-09-01", period: 4 }
-              ],
-              updatedAt: 1
-            },
-            "鈴木 翔太": {
-              shifts: [{ date: "2026-09-01", period: 2 }],
-              updatedAt: 1
-            },
-            "高橋 蓮": {
-              shifts: [{ date: "2026-09-01", period: 3 }],
-              updatedAt: 1
-            },
-            "田中 拓海": {
-              shifts: [{ date: "2026-09-02", period: 2 }],
-              updatedAt: 1
-            },
-            "伊藤 陸": {
-              shifts: [{ date: "2026-09-02", period: 3 }],
-              updatedAt: 1
-            },
-            "渡辺 陽翔": {
-              shifts: [{ date: "2026-09-02", period: 5 }],
-              updatedAt: 1
-            }
-          };
+          coachShiftsStore = {};
         }
 
         const localHolidays = getStorage('app_holidays_' + roomId, null);
@@ -997,32 +948,31 @@
         renderTimetableDisplay();
         if (currentView === 'matrix') renderMatrixTable();
 
-        // 2. Fetch remote backlog
+        // 2. Fetch server backlog once (since=all)
         if (window.fetch) {
-          fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
+          updateCloudStatus('syncing', 'クラウド接続中');
+          fetch('https://ntfy.sh/' + encodeURIComponent(roomId) + '/json?poll=1&since=all')
             .then(res => res.text())
             .then(text => {
               processIncomingRawText(text);
               isInitialSyncDone = true;
-              updateCloudStatus(true, '安全同期中');
+              updateCloudStatus('online', '安全同期中');
             })
-            .catch(err => {
+            .catch(() => {
               isInitialSyncDone = true;
-              updateCloudStatus(false, 'オフライン');
+              updateCloudStatus('online', 'ローカル利用中');
             });
         } else {
           isInitialSyncDone = true;
         }
 
-        // 3. Connect real-time SSE stream
+        // 3. Connect real-time push stream
         if (window.EventSource) {
           try {
-            eventSource = new EventSource('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/sse');
-            
+            eventSource = new EventSource('https://ntfy.sh/' + encodeURIComponent(roomId) + '/sse');
             eventSource.onopen = function() {
-              updateCloudStatus(true, '安全同期中');
+              updateCloudStatus('online', 'リアルタイム接続');
             };
-
             eventSource.onmessage = function(e) {
               if (!e.data) return;
               try {
@@ -1033,32 +983,23 @@
                 }
               } catch(err) {}
             };
-
             eventSource.onerror = function() {
-              updateCloudStatus(false, '再接続中');
+              updateCloudStatus('offline', '待機中');
             };
           } catch(e) {}
         }
-
-        // 4. Periodic keep-alive & poll
-        syncTimer = setInterval(function() {
-          if (!window.fetch) return;
-          fetch('https://ntfy.sh/coach_shift_' + encodeURIComponent(roomId) + '/json?poll=1')
-            .then(res => res.text())
-            .then(text => {
-              processIncomingRawText(text);
-            })
-            .catch(err => {});
-        }, 15000);
       }
 
+      // Resume on mobile unlock or tab return
       document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
-          manualSyncFromCloud();
+          if (window.fetch) {
+            fetch('https://ntfy.sh/' + encodeURIComponent(roomId) + '/json?poll=1&since=all')
+              .then(res => res.text())
+              .then(text => processIncomingRawText(text))
+              .catch(() => {});
+          }
         }
-      });
-      window.addEventListener('focus', function() {
-        manualSyncFromCloud();
       });
 
       window.manualSyncFromCloud = function() {
