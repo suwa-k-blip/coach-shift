@@ -142,7 +142,7 @@
               <span>管理者専用メニュー</span>
             </span>
           </div>
-          <div class="grid grid-cols-4 gap-1">
+          <div class="grid grid-cols-5 gap-1">
             <button onclick="openMatrixModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] py-1 px-0.5 rounded transition flex flex-col items-center justify-center">
               <i data-lucide="table" class="w-3 h-3 mb-0.5"></i>
               <span>集計表</span>
@@ -154,6 +154,10 @@
             <button onclick="openHolidayModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] py-1 px-0.5 rounded transition flex flex-col items-center justify-center">
               <i data-lucide="calendar-off" class="w-3 h-3 mb-0.5"></i>
               <span>休校日</span>
+            </button>
+            <button onclick="openBackupModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] py-1 px-0.5 rounded transition flex flex-col items-center justify-center">
+              <i data-lucide="database" class="w-3 h-3 mb-0.5"></i>
+              <span>引継ぎ</span>
             </button>
             <button onclick="exportToCSV()" class="bg-white text-amber-900 font-bold text-[10px] py-1 px-0.5 rounded transition flex flex-col items-center justify-center shadow-sm">
               <i data-lucide="file-spreadsheet" class="w-3 h-3 mb-0.5"></i>
@@ -639,33 +643,69 @@
         </button>
       </div>
 
-      <!-- Add New Coach Box -->
-      <div class="bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-100 mb-2 space-y-1.5">
-        <label class="block text-[11px] font-bold text-indigo-900">新しいコーチを追加</label>
-        <form onsubmit="event.preventDefault(); addNewCoach();" class="flex gap-1">
-          <input type="text" id="input-new-coach-name" placeholder="例: 吉田 拓海" class="flex-1 text-xs p-1.5 bg-white border border-indigo-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold">
-          <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded transition shadow-sm whitespace-nowrap">
-            追加
-          </button>
-        </form>
-      </div>
+      <!-- Add New Coach Form (Enter-to-submit enabled) -->
+      <form onsubmit="event.preventDefault(); addNewCoach();" class="flex gap-1.5 mb-3">
+        <input type="text" id="input-new-coach-name" placeholder="新しいコーチの名前を入力" class="flex-1 text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold">
+        <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex-shrink-0">追加</button>
+      </form>
 
-      <!-- Coach List Table -->
+      <!-- Coach List -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="block text-[11px] font-bold text-slate-700">登録済みコーチ一覧</label>
-          <button onclick="deleteAllCoaches()" class="text-[10px] font-bold text-rose-600 hover:bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 transition flex items-center gap-0.5 shadow-sm" title="全コーチと登録シフトを一括削除">
+          <label class="block text-xs font-bold text-slate-700">登録済みコーチ一覧</label>
+          <button id="btn-delete-all-coaches" onclick="deleteAllCoaches()" class="text-[10px] text-rose-600 hover:underline font-bold flex items-center gap-0.5">
             <i data-lucide="trash-2" class="w-3 h-3"></i>
             <span>全員を一括削除</span>
           </button>
         </div>
-        <div id="manage-coach-list-container" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-0.5">
+        <div id="manage-coach-list-container" class="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-1 bg-slate-50 rounded-xl border border-slate-200">
           <!-- Dynamically populated -->
         </div>
       </div>
 
       <div class="mt-3 pt-2 border-t border-slate-100 flex justify-end">
         <button onclick="closeModal('modal-manage-coaches')" class="px-3 py-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">完了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7.5 Data Transfer & Backup Modal -->
+  <div id="modal-backup" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-4 border border-slate-100">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="database" class="w-4 h-4 text-amber-600"></i>
+          <span>データ引継ぎ・バックアップ</span>
+        </h3>
+        <button onclick="closeModal('modal-backup')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">
+        プレビュー環境や別端末のデータをGitHub Pagesへ移行する際に使用します。
+      </p>
+
+      <div class="space-y-2">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">データコード（コピー＆ペースト）</label>
+          <textarea id="backup-text-area" rows="4" class="w-full text-[10px] font-mono p-1.5 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-500" placeholder="ここに書き出したコードを貼り付けます"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="copyCurrentBackupData()" class="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded transition flex items-center justify-center gap-1">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span>データをコピー</span>
+          </button>
+          <button onclick="restoreFromBackupData()" class="py-1.5 px-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded transition shadow-sm flex items-center justify-center gap-1">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>貼り付けて復元</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-2 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('modal-backup')" class="px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded">閉じる</button>
       </div>
     </div>
   </div>
@@ -896,6 +936,11 @@
 
       // Debounced safe broadcast to prevent rate limits & buffer overruns
       function broadcastFullSnapshot() {
+        // SAFETY GUARD: Do NOT overwrite cloud if our local store is completely empty!
+        if (coachList.length === 0 && Object.keys(coachShiftsStore).length === 0) {
+          return;
+        }
+
         persistLocalStorage();
 
         clearTimeout(syncDebounceTimer);
@@ -906,12 +951,9 @@
           if (window.fetch) {
             updateCloudStatus('syncing', 'クラウド同期中');
             try {
+              // Use plain simple request without custom headers to prevent CORS preflight block on GitHub Pages
               const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId), {
                 method: 'POST',
-                headers: { 
-                  'Content-Type': 'text/plain; charset=utf-8',
-                  'X-Title': 'ShiftUpdate'
-                },
                 body: jsonString
               });
               if (res.ok) {
@@ -968,7 +1010,8 @@
       async function pullLatestFromCloud() {
         if (!window.fetch) return;
         try {
-          const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId) + '/json?poll=1');
+          // Add 'since=all' to ensure new clients (like GitHub Pages) can fetch the latest state from the buffer
+          const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId) + '/json?poll=1&since=all');
           if (res.ok) {
             const text = await res.text();
             processIncomingRawText(text);
@@ -2228,6 +2271,50 @@
 
       window.openMatrixModal = function() {
         switchMainView('matrix');
+      };
+
+      window.openBackupModal = function() {
+        const area = document.getElementById('backup-text-area');
+        if (area) {
+          const snapshot = buildCompactSnapshot();
+          area.value = JSON.stringify(snapshot);
+        }
+        openModal('modal-backup');
+      };
+
+      window.copyCurrentBackupData = function() {
+        const area = document.getElementById('backup-text-area');
+        if (!area) return;
+        area.select();
+        try {
+          document.execCommand('copy');
+          showToast('データをクリップボードにコピーしました');
+        } catch(e) {
+          showToast('コピーに失敗しました。手動でコピーしてください');
+        }
+      };
+
+      window.restoreFromBackupData = function() {
+        const area = document.getElementById('backup-text-area');
+        const text = area ? area.value.trim() : '';
+        if (!text) {
+          showToast('貼り付けられたデータが空です');
+          return;
+        }
+
+        try {
+          const payload = JSON.parse(text);
+          if (payload && payload.v === 7) {
+            mergeIncomingPayload(payload);
+            broadcastFullSnapshot();
+            closeModal('modal-backup');
+            showToast('データを正常に復元・同期しました！');
+          } else {
+            showToast('データの形式が正しくありません');
+          }
+        } catch(e) {
+          showToast('データの解析に失敗しました');
+        }
       };
 
       window.exportToCSV = function() {
