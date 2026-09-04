@@ -746,8 +746,8 @@
       let sseReconnectTimer = null;
       let syncDebounceTimer = null;
 
-      // Ultra-optimized high density channel (v7)
-      const roomId = 'coach_shift_kyoto_v7_opt';
+      // Clean dedicated high-speed channel (v8)
+      const roomId = 'coach_shift_kyoto_2026_v8';
 
       let coachList = [];
       let selectedCoaches = [];
@@ -1010,7 +1010,6 @@
       async function pullLatestFromCloud() {
         if (!window.fetch) return;
         try {
-          // Add 'since=all' to ensure new clients (like GitHub Pages) can fetch the latest state from the buffer
           const res = await fetch('https://ntfy.sh/' + encodeURIComponent(roomId) + '/json?poll=1&since=all');
           if (res.ok) {
             const text = await res.text();
@@ -1019,6 +1018,42 @@
           }
         } catch(e) {}
       }
+
+      // Check URL hash for embedded instant data backup (e.g., #data=...)
+      function checkUrlHashData() {
+        try {
+          if (window.location.hash && window.location.hash.startsWith('#data=')) {
+            const encoded = window.location.hash.replace('#data=', '');
+            const jsonStr = decodeURIComponent(atob(encoded));
+            const payload = JSON.parse(jsonStr);
+            if (payload && payload.v === 7) {
+              mergeIncomingPayload(payload);
+              broadcastFullSnapshot();
+              history.replaceState(null, '', window.location.pathname);
+              showToast('共有リンクから最新データを読み込みました！');
+            }
+          }
+        } catch(e) {}
+      }
+
+      window.copyShareableUrl = function() {
+        try {
+          const snapshot = buildCompactSnapshot();
+          const encoded = btoa(encodeURIComponent(JSON.stringify(snapshot)));
+          const shareUrl = window.location.origin + window.location.pathname + '#data=' + encoded;
+          
+          const tempInput = document.createElement('input');
+          tempInput.value = shareUrl;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+          
+          showToast('データ入りURLをコピーしました！LINE等で送れます');
+        } catch(e) {
+          showToast('URLの生成に失敗しました');
+        }
+      };
 
       function connectSSEStream() {
         if (!window.EventSource) return;
@@ -1075,6 +1110,9 @@
         const localTimetable = getStorage('app_timetable_' + roomId, null);
         if (localTimetable) timetableTimes = localTimetable;
 
+        // Check if opened with share link
+        checkUrlHashData();
+
         rebuildFlatShifts();
         validateCurrentCoachState();
         renderCoachChecklist();
@@ -1083,7 +1121,11 @@
         renderTimetableDisplay();
         if (currentView === 'matrix') renderMatrixTable();
 
+        // Multi-tier reliable fetch (immediate, 1s, 3s)
         pullLatestFromCloud();
+        setTimeout(pullLatestFromCloud, 1000);
+        setTimeout(pullLatestFromCloud, 3000);
+
         connectSSEStream();
       }
 
