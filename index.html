@@ -15,7 +15,7 @@
           keyframes: {
             jump: {
               '0%, 100%': { transform: 'translateY(0) scale(1)' },
-              '40%': { transform: 'translateY(-6px) scale(1.06)' },
+              '40%': { transform: 'translateY(-5px) scale(1.06)' },
               '70%': { transform: 'translateY(2px) scale(0.96)' }
             }
           },
@@ -32,6 +32,7 @@
       max-width: 100vw;
       margin: 0;
       padding: 0;
+      overflow-x: hidden;
     }
     .modal-overlay {
       background-color: rgba(15, 23, 42, 0.55);
@@ -44,7 +45,7 @@
     .badge-card:hover {
       transform: translateY(-1px);
     }
-    /* 休校日用のポルカドット（水玉）背景 */
+    /* 休校日用のポルカドット背景 */
     .holiday-cell {
       background-color: #fff1f2;
       background-image: radial-gradient(#fda4af 0.8px, transparent 0.8px);
@@ -64,7 +65,7 @@
       background-size: 300% 300% !important;
       animation: gold-shine 2.5s ease infinite, jump 0.5s ease-out !important;
       border-color: #b45309 !important;
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.8) !important;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.8) !important;
     }
     .sparkle-particle {
       position: absolute;
@@ -84,107 +85,153 @@
   <!-- メインラッパー -->
   <div class="max-w-[1600px] w-full mx-auto p-2 sm:p-4 flex-1 flex flex-col gap-2.5">
     
-    <!-- 1. 最上部ヘッダー（白背景カード） -->
-    <header class="bg-white rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-      <!-- 左側：アイコン ＋ アプリ名 ＋ 同期ステータス -->
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-500/20 shrink-0">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-1.5 sm:gap-2">
-            <h1 class="font-extrabold text-slate-900 text-sm sm:text-lg leading-tight truncate">コーチ出勤可能コマ共有</h1>
-            <span id="sync-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-              <span id="sync-dot" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span id="sync-text">同期完了</span>
+    <!-- 1. 上のバー（ヘッダー ＆ 月ナビ ＆ 操作ボタン群）: スマホでも横スクロールが出ないようスッキリ整理 -->
+    <header class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-slate-200/80 flex flex-col gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        
+        <!-- 左側：アプリアイコン ＋ タイトル ＋ 同期バッジ -->
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-500/20 shrink-0">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-extrabold text-slate-900 text-xs sm:text-base leading-tight truncate">コーチ出勤可能コマ</h1>
+            <span id="sync-badge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <span id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="sync-text">同期中</span>
             </span>
           </div>
         </div>
-      </div>
 
-      <!-- 中央：月ナビゲーション ＆ クイック月タブ -->
-      <div class="flex items-center gap-1.5">
-        <div class="flex items-center bg-slate-50 border border-slate-200/80 rounded-xl p-0.5">
-          <button onclick="changeMonth(-1)" id="btn-prev-month" class="p-1 sm:p-1.5 text-slate-600 hover:text-brand-600 hover:bg-white rounded-lg transition-all disabled:opacity-30">
-            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        <!-- 中央：月ナビゲーション ＆ クイック月タブ -->
+        <div class="flex items-center gap-1 sm:gap-1.5">
+          <div class="flex items-center bg-slate-50 border border-slate-200/80 rounded-xl p-0.5">
+            <button onclick="changeMonth(-1)" id="btn-prev-month" class="p-1 sm:p-1.5 text-slate-600 hover:text-brand-600 hover:bg-white rounded-lg transition-all disabled:opacity-30">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span id="current-month-display" class="font-extrabold text-slate-800 text-xs sm:text-sm px-1 sm:px-2 whitespace-nowrap">2026年 9月</span>
+            <button onclick="changeMonth(1)" id="btn-next-month" class="p-1 sm:p-1.5 text-slate-600 hover:text-brand-600 hover:bg-white rounded-lg transition-all disabled:opacity-30">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+
+          <!-- 月タブ (9月〜1月) -->
+          <div class="flex items-center gap-0.5 sm:gap-1 bg-slate-50 border border-slate-200/80 rounded-xl p-0.5 sm:p-1 text-[11px] font-bold overflow-x-auto">
+            <button onclick="setMonthTarget(2026, 8)" id="tab-month-9" class="px-2 py-0.5 sm:py-1 rounded-lg bg-brand-600 text-white transition-all">9月</button>
+            <button onclick="setMonthTarget(2026, 9)" id="tab-month-10" class="px-2 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">10月</button>
+            <button onclick="setMonthTarget(2026, 10)" id="tab-month-11" class="px-2 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">11月</button>
+            <button onclick="setMonthTarget(2026, 11)" id="tab-month-12" class="px-2 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">12月</button>
+            <button onclick="setMonthTarget(2027, 0)" id="tab-month-1" class="px-2 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">1月</button>
+          </div>
+        </div>
+
+        <!-- 右側：操作者 ＆ 管理 ＆ 更新 ＆ 休校一括 ＆ コマ追加 -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <button onclick="openModal('modal-select-coach')" class="flex items-center gap-1 bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-1 sm:py-1.5 rounded-xl border border-brand-200/80 text-xs font-bold transition-all">
+            <span>👤</span>
+            <span id="header-coach-name">諏訪</span>
+            <span class="text-[10px] text-brand-500 underline ml-0.5">変更</span>
           </button>
-          <span id="current-month-display" class="font-extrabold text-slate-800 text-xs sm:text-sm px-1.5 sm:px-2 whitespace-nowrap">2026年 9月</span>
-          <button onclick="changeMonth(1)" id="btn-next-month" class="p-1 sm:p-1.5 text-slate-600 hover:text-brand-600 hover:bg-white rounded-lg transition-all disabled:opacity-30">
-            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+
+          <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定">
+            <span>🛡️</span>
+            <span class="hidden md:inline">管理</span>
+          </button>
+
+          <button onclick="fetchRemoteData(true)" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="最新状態に更新">
+            <svg id="reload-icon" class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+
+          <button onclick="openBulkModal('holiday')" class="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-bold transition-all" title="休校日を一括設定">
+            <span>🎌</span>
+            <span class="hidden sm:inline">休校日一括</span>
+          </button>
+
+          <button onclick="handleQuickAddClick()" class="flex items-center gap-1 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-brand-500/30 transition-all">
+            <span>+</span>
+            <span>コマ追加</span>
           </button>
         </div>
 
-        <!-- 月タブ (9月〜1月) -->
-        <div class="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-xl p-1 text-[11px] sm:text-xs font-bold overflow-x-auto">
-          <button onclick="setMonthTarget(2026, 8)" id="tab-month-9" class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-brand-600 text-white transition-all">9月</button>
-          <button onclick="setMonthTarget(2026, 9)" id="tab-month-10" class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">10月</button>
-          <button onclick="setMonthTarget(2026, 10)" id="tab-month-11" class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">11月</button>
-          <button onclick="setMonthTarget(2026, 11)" id="tab-month-12" class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">12月</button>
-          <button onclick="setMonthTarget(2027, 0)" id="tab-month-1" class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all">1月</button>
-        </div>
-      </div>
-
-      <!-- 右側：ユーザー切替 ＆ 管理者 ＆ 再読込 ＆ 休校一括 ＆ コマ追加 -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <button onclick="openModal('modal-select-coach')" class="flex items-center gap-1 bg-brand-50 hover:bg-brand-100 text-brand-700 px-2.5 py-1 sm:py-1.5 rounded-xl border border-brand-200/80 text-xs font-bold transition-all">
-          <span>👤</span>
-          <span id="header-coach-name">諏訪</span>
-          <span class="text-[10px] text-brand-500 underline ml-0.5">変更</span>
-        </button>
-
-        <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定">
-          <span>🛡️</span>
-          <span class="hidden md:inline">管理者</span>
-        </button>
-
-        <button onclick="fetchRemoteData(true)" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="最新状態に更新">
-          <svg id="reload-icon" class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        </button>
-
-        <button onclick="openBulkModal('holiday')" class="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold transition-all" title="休校日を一括設定">
-          <span>🎌</span>
-          <span class="hidden sm:inline">休校日一括</span>
-        </button>
-
-        <button onclick="handleQuickAddClick()" class="flex items-center gap-1 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-bold shadow-sm shadow-brand-500/30 transition-all">
-          <span>+</span>
-          <span>コマ追加</span>
-        </button>
       </div>
     </header>
 
-    <!-- 2. メインコンテンツ（PCは左サイドバー＋右カレンダー、スマホ時はサイドバーが上に来る） -->
+    <!-- 2. コンテンツ領域（スマホ時は カレンダーが先[order-1]、サイドバーが後[order-2] / PC時は 左サイドバー[md:order-1]、右カレンダー[md:order-2]） -->
     <div class="flex flex-col md:flex-row gap-3 flex-1 min-w-0">
       
-      <!-- サイドバー（スマホ時は最上部に来るので、ペン太も名簿もすぐに見えます） -->
-      <aside class="w-full md:w-64 lg:w-72 flex flex-col gap-2.5 shrink-0">
-        
-        <!-- ★ ペン太ミニカード（単一の実体として常に確実に表示されます） -->
-        <div id="mascot-single-card" onclick="pokeMascot()" class="bg-gradient-to-r from-indigo-50/90 via-white to-sky-50/90 rounded-2xl p-2.5 shadow-xs border border-indigo-200/90 flex items-center gap-2.5 cursor-pointer select-none hover:shadow-md hover:border-indigo-300 transition-all group relative overflow-hidden" title="タップしてペン太をつつくとジャンプ＆セリフが変わるよ！">
-          
-          <!-- 音声ON/OFFボタン -->
-          <button onclick="toggleMascotSound(event)" class="absolute top-2 right-2 text-[10px] font-bold p-1 rounded-md bg-white/95 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-2xs z-10 flex items-center gap-0.5 transition-all" title="効果音のON/OFF">
-            <span id="sound-icon-display" class="text-xs">🔊</span>
-          </button>
-
-          <!-- アバター -->
-          <div id="mascot-avatar-box" class="relative shrink-0 transition-transform">
-            <div id="mascot-svg-box" class="w-10 h-10 drop-shadow-xs transition-all group-hover:scale-105"></div>
-            <span id="mascot-badge-display" class="absolute -bottom-1 -right-1 text-[7px] font-black bg-indigo-600 text-white px-1 py-0.2 rounded-full shadow-xs border border-white">通常</span>
+      <!-- 【カレンダー表示部】スマホで見た時は「２番目（order-1）」、PCでは「右側（md:order-2）」 -->
+      <main class="order-1 md:order-2 flex-1 bg-white rounded-2xl p-2.5 sm:p-4 shadow-xs border border-slate-200/80 flex flex-col min-w-0">
+        <!-- 上部バー（タブ切り替え ＆ 凡例） -->
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-2">
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button onclick="switchMainView('calendar')" id="view-tab-calendar" class="px-3 py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all">カレンダー表示</button>
+            <button onclick="switchMainView('matrix')" id="view-tab-matrix" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all flex items-center gap-1">
+              <span>📊</span>
+              <span>全コママトリクス</span>
+            </button>
           </div>
 
-          <!-- トーク＆ステータス -->
-          <div class="flex-1 min-w-0 pr-6">
-            <div class="flex items-center gap-1 mb-0.5">
-              <span class="text-xs font-black text-indigo-950 flex items-center gap-0.5">
-                <span>🐧</span>
-                <span>ペン太</span>
-              </span>
-              <span id="mascot-role-display" class="text-[8px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded-full">応援中</span>
+          <!-- 凡例 -->
+          <div class="flex items-center gap-2.5 text-xs font-bold text-slate-500">
+            <div class="flex items-center gap-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span>3名以上</span>
             </div>
-            <p id="mascot-speech-display" class="text-[11px] font-bold text-slate-700 leading-tight transition-opacity duration-200 min-h-[16px] truncate">
-              シフト共有お疲れ様です！✨
-            </p>
+            <div class="flex items-center gap-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              <span>1〜2名</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+              <span>☕ 休校日</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- カレンダービュー -->
+        <div id="view-calendar-container" class="flex-1 flex flex-col min-w-0">
+          <div class="grid grid-cols-7 text-center font-extrabold text-xs py-1.5 border-b border-slate-200 bg-slate-50/60 rounded-t-xl">
+            <div class="text-rose-500">日</div>
+            <div class="text-slate-700">月</div>
+            <div class="text-slate-700">火</div>
+            <div class="text-slate-700">水</div>
+            <div class="text-slate-700">木</div>
+            <div class="text-slate-700">金</div>
+            <div class="text-sky-500">土</div>
+          </div>
+          <div id="calendar-grid" class="grid grid-cols-7 border-l border-t border-slate-200 flex-1 min-h-[480px] auto-rows-fr"></div>
+        </div>
+
+        <!-- 全コママトリクスビュー -->
+        <div id="view-matrix-container" class="flex-1 hidden overflow-x-auto">
+          <div id="matrix-table-wrap" class="w-full text-xs"></div>
+        </div>
+      </main>
+
+      <!-- 【サイドバー】スマホで見た時は「３番目（order-2）」、PCでは「左側（md:order-1）」 -->
+      <aside class="order-2 md:order-1 w-full md:w-64 lg:w-72 flex flex-col gap-2.5 shrink-0">
+        
+        <!-- カード0: ★ ペン太が左サイドバー最上部にすっきり復帰！ -->
+        <div id="mascot-single-card" onclick="pokeMascot()" class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-indigo-100/80 flex items-center gap-2.5 cursor-pointer select-none transition-all group relative hover:border-indigo-300" title="タップしてペン太をつつくとジャンプ＆セリフが変わるよ！">
+          <!-- ペン太のアバター -->
+          <div id="mascot-avatar-box" class="relative shrink-0 w-9 h-9 sm:w-10 sm:h-10 transition-transform">
+            <div id="mascot-svg-box" class="w-full h-full drop-shadow-2xs group-hover:scale-105 transition-transform"></div>
+            <span id="mascot-badge-display" class="absolute -bottom-1 -right-1 text-[7px] font-black bg-indigo-600 text-white px-1 py-0.2 rounded-full border border-white">通常</span>
+          </div>
+
+          <!-- トーク ＆ ステータス -->
+          <div class="flex flex-col min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-1 leading-none mb-1">
+              <div class="flex items-center gap-1 min-w-0">
+                <span class="text-xs font-black text-indigo-950 truncate">🐧 ペン太</span>
+                <span id="mascot-role-display" class="text-[8px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full truncate">応援中</span>
+              </div>
+              <!-- 効果音ON/OFFミニボタン -->
+              <button onclick="toggleMascotSound(event)" class="text-xs p-1 rounded text-indigo-600 hover:bg-indigo-50 transition-all shrink-0" title="効果音のON/OFF">
+                <span id="sound-icon-display">🔊</span>
+              </button>
+            </div>
+            <p id="mascot-speech-display" class="text-[11px] font-bold text-slate-700 leading-snug line-clamp-2">シフト共有お疲れ様です！✨</p>
           </div>
         </div>
 
@@ -252,55 +299,6 @@
           </div>
         </div>
       </aside>
-
-      <!-- メインビュー（カレンダー / マトリクス） -->
-      <main class="flex-1 bg-white rounded-2xl p-2.5 sm:p-4 shadow-xs border border-slate-200/80 flex flex-col min-w-0">
-        <!-- 上部バー（タブ切り替え ＆ 凡例） -->
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-2">
-          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-            <button onclick="switchMainView('calendar')" id="view-tab-calendar" class="px-3 py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all">カレンダー表示</button>
-            <button onclick="switchMainView('matrix')" id="view-tab-matrix" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all flex items-center gap-1">
-              <span>📊</span>
-              <span>全コママトリクス</span>
-            </button>
-          </div>
-
-          <!-- 凡例 -->
-          <div class="flex items-center gap-2.5 text-xs font-bold text-slate-500">
-            <div class="flex items-center gap-1">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span>3名以上</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span>1〜2名</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
-              <span>☕ 休校日</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- カレンダービュー -->
-        <div id="view-calendar-container" class="flex-1 flex flex-col min-w-0">
-          <div class="grid grid-cols-7 text-center font-extrabold text-xs py-1.5 border-b border-slate-200 bg-slate-50/60 rounded-t-xl">
-            <div class="text-rose-500">日</div>
-            <div class="text-slate-700">月</div>
-            <div class="text-slate-700">火</div>
-            <div class="text-slate-700">水</div>
-            <div class="text-slate-700">木</div>
-            <div class="text-slate-700">金</div>
-            <div class="text-sky-500">土</div>
-          </div>
-          <div id="calendar-grid" class="grid grid-cols-7 border-l border-t border-slate-200 flex-1 min-h-[480px] auto-rows-fr"></div>
-        </div>
-
-        <!-- 全コママトリクスビュー -->
-        <div id="view-matrix-container" class="flex-1 hidden overflow-x-auto">
-          <div id="matrix-table-wrap" class="w-full text-xs"></div>
-        </div>
-      </main>
 
     </div>
   </div>
@@ -658,7 +656,7 @@
       renderCalendar();
       setupModalOverlayClick();
 
-      // ★アクセス時にペン太の相棒衣装をランダム決定（約2.5%で大当たり）
+      // ★ アクセス時（リロード時）に衣装バージョンをランダム決定（約2.5%で黄金の大当たり）
       if (Math.random() < 0.025) {
         isGodModeActive = true;
         currentSpeechSubIdx = Math.floor(Math.random() * GOD_MASCOT_VARIANT.speech.length);
@@ -817,8 +815,8 @@
         if (tabEl) {
           const isCurrent = (m === 12) ? (currentYear === 2027 && currentMonth === 0) : (currentYear === 2026 && currentMonth === m);
           tabEl.className = isCurrent 
-            ? 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-brand-600 text-white transition-all shadow-xs' 
-            : 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
+            ? 'px-2 py-0.5 sm:py-1 rounded-lg bg-brand-600 text-white transition-all shadow-xs' 
+            : 'px-2 py-0.5 sm:py-1 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
         }
       }
 
@@ -1616,7 +1614,6 @@
       if (el) el.classList.add('hidden');
     }
 
-    // --- ペン太用サウンド＆バリエーション管理 ---
     let soundEnabled = true;
     let audioCtx = null;
 
@@ -2003,8 +2000,8 @@
       if (roleEl) {
         roleEl.innerText = v.role;
         roleEl.className = isJackpot
-          ? 'text-[8px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-300'
-          : 'text-[8px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded-full';
+          ? 'text-[8px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded-full border border-amber-300'
+          : 'text-[8px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full';
       }
 
       const speechEl = document.getElementById('mascot-speech-display');
@@ -2013,7 +2010,7 @@
       }
     }
 
-    // ★クリック時：衣装（バージョン）は変えず、その姿のままジャンプしてセリフだけ切り替え
+    // クリック時：衣装は変わらず、その姿のままジャンプしてセリフだけ切り替え
     function pokeMascot() {
       const v = isGodModeActive ? GOD_MASCOT_VARIANT : MASCOT_VARIANTS[currentMascotVariantIdx];
 
