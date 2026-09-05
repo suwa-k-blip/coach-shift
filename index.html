@@ -264,7 +264,6 @@
           </div>
           <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
             <span class="font-bold">操作者:</span>
-            <!-- 直接切り替えできるドロップダウン -->
             <select id="shift-modal-coach-select" onchange="handleShiftModalCoachSelect(this.value)" class="font-extrabold text-brand-600 bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
             </select>
           </div>
@@ -305,7 +304,6 @@
 
       <!-- コマ一括設定 -->
       <div id="bulk-sec-shift" class="space-y-3">
-        <!-- 操作コーチ直接変更バー（デザイン崩れを防止） -->
         <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 gap-2">
           <span class="text-xs font-bold text-slate-600 shrink-0">操作コーチ:</span>
           <div class="flex items-center gap-1.5 flex-1 max-w-[200px]">
@@ -770,6 +768,7 @@
       }
     }
 
+    // --- カレンダー描画（1コマ1行にまとめてスッキリ表示） ---
     function renderCalendar() {
       const grid = document.getElementById('calendar-grid');
       if (!grid) return;
@@ -812,6 +811,7 @@
 
         const dayShifts = shiftData[dateStr] || {};
         
+        // 2〜6講ごとにまとめ、1コマにつき1枚のカードで全員を表示する
         PERIODS.forEach(period => {
           const coachesInPeriod = [];
           visibleCoaches.forEach(coach => {
@@ -822,19 +822,25 @@
           });
 
           if (coachesInPeriod.length > 0) {
-            const isMany = (coachesInPeriod.length >= 3);
+            const count = coachesInPeriod.length;
+            const isMany = (count >= 3);
             const cardBg = isMany ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900';
             const dotColor = isMany ? 'text-emerald-600' : 'text-amber-600';
 
-            coachesInPeriod.forEach(c => {
-              const card = document.createElement('div');
-              card.className = `badge-card border rounded px-1 py-0.5 text-[10px] font-bold flex items-center justify-between shadow-2xs ${cardBg}`;
-              card.innerHTML = `
-                <span class="font-extrabold text-slate-800">${period}講</span>
-                <span class="truncate ml-1 flex items-center gap-0.5"><span class="${dotColor}">●</span> ${c}</span>
-              `;
-              cardsContainer.appendChild(card);
-            });
+            const card = document.createElement('div');
+            card.className = `badge-card border rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center justify-between gap-1 shadow-2xs ${cardBg}`;
+            card.title = `${period}講: ${coachesInPeriod.join(', ')}`;
+            
+            // 複数名の場合は名前をまとめて表示し、2名以上の場合は人数バッジも併記
+            card.innerHTML = `
+              <span class="font-extrabold text-slate-800 shrink-0">${period}講</span>
+              <span class="truncate ml-1 flex items-center gap-1 min-w-0 flex-1">
+                <span class="${dotColor} shrink-0 text-[8px]">●</span>
+                <span class="truncate text-[10px]">${coachesInPeriod.join(', ')}</span>
+              </span>
+              ${count > 1 ? `<span class="text-[9px] font-extrabold px-1 py-0.2 rounded bg-white/90 border border-slate-200 text-slate-700 shrink-0 ml-0.5">${count}名</span>` : ''}
+            `;
+            cardsContainer.appendChild(card);
           }
         });
 
@@ -1228,7 +1234,6 @@
         switchAdminTab('coach');
         renderAdminHolidayGrid();
         openModal('modal-admin-panel');
-        // コーチ入力欄に自動フォーカス
         setTimeout(() => {
           const newCoachInput = document.getElementById('new-coach-name');
           if (newCoachInput) newCoachInput.focus();
