@@ -41,7 +41,7 @@
   <!-- メインラッパー -->
   <div class="max-w-[1600px] w-full mx-auto p-2 sm:p-4 flex-1 flex flex-col gap-2.5">
     
-    <!-- 1. 最上部ヘッダー（白背景カード） -->
+    <!-- 最上部ヘッダー（白背景カード） -->
     <header class="bg-white rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
       <!-- 左側：アイコン ＋ アプリ名 ＋ 同期ステータス -->
       <div class="flex items-center gap-2.5">
@@ -81,7 +81,7 @@
         </div>
       </div>
 
-      <!-- 右側：ユーザー切替 ＆ 管理者 ＆ 再読込 ＆ コマ追加 -->
+      <!-- 右側：ユーザー切替 ＆ 管理者 ＆ 再読込 ＆ 休校一括 ＆ コマ追加 -->
       <div class="flex items-center gap-1.5 shrink-0">
         <!-- 現在の操作者 -->
         <button onclick="openModal('modal-select-coach')" class="flex items-center gap-1 bg-brand-50 hover:bg-brand-100 text-brand-700 px-2.5 py-1 sm:py-1.5 rounded-xl border border-brand-200/80 text-xs font-bold transition-all">
@@ -115,7 +115,7 @@
       </div>
     </header>
 
-    <!-- 2. メインコンテンツ -->
+    <!-- メインコンテンツ -->
     <div class="flex flex-col md:flex-row gap-3 flex-1 min-w-0">
       
       <!-- メインビュー（カレンダー / マトリクス） -->
@@ -238,8 +238,6 @@
     </div>
   </div>
 
-  <!-- 各種モーダル -->
-
   <!-- 1. 操作者選択モーダル（ヘッダーから開く用） -->
   <div id="modal-select-coach" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl max-w-xs w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3">
@@ -253,9 +251,9 @@
     </div>
   </div>
 
-  <!-- 2. 個別コマ登録・編集モーダル -->
+  <!-- 2. 個別コマ登録・詳細モーダル（出勤可能メンバーがひと目でわかる仕様） -->
   <div id="modal-shift" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-2">
         <div>
           <div class="flex items-center gap-1.5">
@@ -263,7 +261,7 @@
             <span id="shift-modal-holiday-badge" class="hidden text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-md">休校日</span>
           </div>
           <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-            <span class="font-bold">操作者:</span>
+            <span class="font-bold">あなたの名前:</span>
             <select id="shift-modal-coach-select" onchange="handleShiftModalCoachSelect(this.value)" class="font-extrabold text-brand-600 bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500">
             </select>
           </div>
@@ -271,10 +269,13 @@
         <button onclick="closeModal('modal-shift')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
 
-      <!-- コマ選択ボタン -->
+      <!-- その日の全体サマリー（誰が出勤可能か一覧） -->
+      <div id="shift-modal-day-summary" class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex flex-col gap-1"></div>
+
+      <!-- コマ別出勤可能メンバー ＆ 登録トグルボタン一覧 -->
       <div>
-        <label class="text-xs font-bold text-slate-600 block mb-1.5">出勤可能コマ（タップで登録 / 解除）</label>
-        <div id="shift-period-buttons" class="space-y-1.5"></div>
+        <label class="text-xs font-bold text-slate-700 block mb-1.5">時限ごとの出勤可能メンバー</label>
+        <div id="shift-period-buttons" class="space-y-2"></div>
       </div>
 
       <!-- 休校日切り替えボタン -->
@@ -284,11 +285,11 @@
         </button>
       </div>
 
-      <button onclick="closeModal('modal-shift')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs py-2 rounded-xl mt-1 shadow-sm">完了</button>
+      <button onclick="closeModal('modal-shift')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs py-2 rounded-xl mt-1 shadow-sm">閉じる</button>
     </div>
   </div>
 
-  <!-- 3. 一括コマ登録モーダル（崩れない直接セレクト仕様） -->
+  <!-- 3. 一括コマ登録モーダル（直接セレクト仕様） -->
   <div id="modal-bulk" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-2">
@@ -504,6 +505,9 @@
       updateCoachDropdowns();
       updateAdminCoachList();
       renderAdminHolidayGrid();
+      if (!document.getElementById('modal-shift').classList.contains('hidden')) {
+        renderShiftButtons();
+      }
     }
 
     async function broadcastData() {
@@ -579,7 +583,7 @@
       });
     }
 
-    // --- 操作者切替（すべてのUIで連動） ---
+    // --- 操作者切替 ---
     function setActiveCoach(name) {
       activeCoach = name;
       updateActiveCoachUI();
@@ -610,7 +614,6 @@
       updateCoachDropdowns();
     }
 
-    // 一括画面・個別画面内のドロップダウンを生成・同期
     function updateCoachDropdowns() {
       const bulkSelect = document.getElementById('bulk-coach-select');
       const shiftSelect = document.getElementById('shift-modal-coach-select');
@@ -768,7 +771,6 @@
       }
     }
 
-    // --- カレンダー描画（1コマ1行にまとめてスッキリ表示） ---
     function renderCalendar() {
       const grid = document.getElementById('calendar-grid');
       if (!grid) return;
@@ -811,7 +813,6 @@
 
         const dayShifts = shiftData[dateStr] || {};
         
-        // 2〜6講ごとにまとめ、1コマにつき1枚のカードで全員を表示する
         PERIODS.forEach(period => {
           const coachesInPeriod = [];
           visibleCoaches.forEach(coach => {
@@ -831,7 +832,6 @@
             card.className = `badge-card border rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center justify-between gap-1 shadow-2xs ${cardBg}`;
             card.title = `${period}講: ${coachesInPeriod.join(', ')}`;
             
-            // 複数名の場合は名前をまとめて表示し、2名以上の場合は人数バッジも併記
             card.innerHTML = `
               <span class="font-extrabold text-slate-800 shrink-0">${period}講</span>
               <span class="truncate ml-1 flex items-center gap-1 min-w-0 flex-1">
@@ -975,41 +975,110 @@
       broadcastData();
     }
 
+    // --- 日付タップ時の詳細：誰が出勤可能か一目でわかるリスト ＆ 操作者の登録ボタン ---
     function renderShiftButtons() {
       const container = document.getElementById('shift-period-buttons');
+      const summaryContainer = document.getElementById('shift-modal-day-summary');
       if (!container) return;
       container.innerHTML = '';
 
-      if (!activeCoach) {
-        container.innerHTML = `
-          <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs text-center font-bold">
-            操作コーチが未選択です。上部の選択欄から選択してください。
-          </div>
-        `;
-        return;
+      const dayShifts = shiftData[selectedDateStr] || {};
+
+      // 1. 本日全体のサマリー表示
+      if (summaryContainer) {
+        const availableCoachesToday = coaches.filter(c => (dayShifts[c] || []).length > 0);
+        if (availableCoachesToday.length > 0) {
+          summaryContainer.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                <span>👥</span> 本日の出勤可能コーチ:
+              </span>
+              <span class="text-[11px] font-extrabold text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full">${availableCoachesToday.length}名</span>
+            </div>
+            <div class="flex flex-wrap gap-1 mt-1">
+              ${availableCoachesToday.map(c => `
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-extrabold ${c === activeCoach ? 'bg-brand-600 text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-700'}">
+                  ${c === activeCoach ? '★ ' + c + '(自分)' : c}
+                </span>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          summaryContainer.innerHTML = `
+            <div class="text-[11px] font-bold text-slate-400 text-center py-1 flex items-center justify-center gap-1">
+              <span>📭</span> まだこの日の出勤可能登録はありません
+            </div>
+          `;
+        }
       }
 
-      const dayShifts = shiftData[selectedDateStr] || {};
-      const activePeriods = dayShifts[activeCoach] || [];
-
+      // 2. コマ（2〜6講）ごとの出勤可能メンバーバッジ ＆ 登録トグル
       PERIODS.forEach(p => {
-        const isSelected = activePeriods.includes(p);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
-          isSelected 
-            ? 'bg-brand-600 text-white border-brand-600 shadow-xs' 
-            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+        const coachesInPeriod = coaches.filter(c => (dayShifts[c] || []).includes(p));
+        const isSelfSelected = activeCoach && (dayShifts[activeCoach] || []).includes(p);
+        const count = coachesInPeriod.length;
+
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border transition-all flex flex-col gap-1.5 ${
+          count > 0 ? (count >= 3 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-amber-50/40 border-amber-200') : 'bg-slate-50/70 border-slate-200'
         }`;
-        btn.innerHTML = `
+
+        // 上段：時限名・時間 ＆ 操作者自身の登録ボタン
+        const topRow = document.createElement('div');
+        topRow.className = 'flex items-center justify-between gap-2';
+
+        topRow.innerHTML = `
           <div class="flex items-center gap-2">
-            <span class="w-6 text-left">${p}講</span>
-            <span class="text-[11px] font-normal opacity-80">${getPeriodTimeRange(p)}</span>
+            <span class="font-extrabold text-slate-800 text-sm w-8">${p}講</span>
+            <span class="text-[11px] text-slate-500 font-mono">${getPeriodTimeRange(p)}</span>
+            ${count > 0 ? `<span class="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${count >= 3 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">${count}名</span>` : ''}
           </div>
-          <span>${isSelected ? '✓ 出勤可能' : '+ 登録'}</span>
         `;
-        btn.onclick = () => togglePeriod(p);
-        container.appendChild(btn);
+
+        const actionBtn = document.createElement('button');
+        actionBtn.type = 'button';
+        if (isSelfSelected) {
+          actionBtn.className = 'px-3 py-1 rounded-lg text-xs font-extrabold bg-brand-600 hover:bg-brand-700 text-white shadow-xs transition-all flex items-center gap-1 shrink-0';
+          actionBtn.innerHTML = '<span>✓ 出勤可能</span>';
+        } else {
+          actionBtn.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-slate-600 hover:text-brand-600 border border-slate-300 transition-all flex items-center gap-1 shrink-0';
+          actionBtn.innerHTML = '<span>+ 出勤にする</span>';
+        }
+        actionBtn.onclick = () => togglePeriod(p);
+        topRow.appendChild(actionBtn);
+        card.appendChild(topRow);
+
+        // 下段：出勤可能メンバー全員の名前バッジ
+        const coachListRow = document.createElement('div');
+        coachListRow.className = 'flex items-center gap-1.5 pt-1 border-t border-slate-200/60 text-xs';
+
+        if (count > 0) {
+          coachListRow.innerHTML = `
+            <span class="text-[10px] font-bold text-slate-500 shrink-0">出勤可能:</span>
+            <div class="flex flex-wrap gap-1 items-center">
+              ${coachesInPeriod.map(c => {
+                const isMe = (c === activeCoach);
+                return `
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-extrabold flex items-center gap-1 ${
+                    isMe 
+                      ? 'bg-brand-100 text-brand-800 border border-brand-300 shadow-2xs' 
+                      : 'bg-white border border-slate-200 text-slate-800'
+                  }">
+                    <span class="w-1.5 h-1.5 rounded-full ${isMe ? 'bg-brand-600' : 'bg-emerald-500'}"></span>
+                    <span>${c}${isMe ? '(自分)' : ''}</span>
+                  </span>
+                `;
+              }).join('')}
+            </div>
+          `;
+        } else {
+          coachListRow.innerHTML = `
+            <span class="text-[10px] text-slate-400 font-medium">現在出勤可能なコーチはいません</span>
+          `;
+        }
+
+        card.appendChild(coachListRow);
+        container.appendChild(card);
       });
     }
 
@@ -1204,7 +1273,6 @@
       showNotice('休校日の一括設定を反映しました！');
     }
 
-    // --- 管理者パネル & Enterキー制御 ---
     function handleAdminPassKeydown(event) {
       if (event.key === 'Enter') {
         event.preventDefault();
