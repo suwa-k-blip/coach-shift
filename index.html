@@ -11,6 +11,16 @@
         extend: {
           colors: {
             brand: { 50: '#f0f3ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          },
+          keyframes: {
+            jump: {
+              '0%, 100%': { transform: 'translateY(0) scale(1)' },
+              '40%': { transform: 'translateY(-8px) scale(1.08)' },
+              '70%': { transform: 'translateY(2px) scale(0.96)' }
+            }
+          },
+          animation: {
+            'mascot-jump': 'jump 0.4s ease-out'
           }
         }
       }
@@ -34,6 +44,15 @@
     .badge-card:hover {
       transform: translateY(-1px);
     }
+    /* ★可愛い休校日用のポルカドット（水玉）背景 */
+    .holiday-cell {
+      background-color: #fff1f2;
+      background-image: radial-gradient(#fda4af 0.8px, transparent 0.8px);
+      background-size: 8px 8px;
+    }
+    .holiday-cell:hover {
+      background-color: #ffe4e6;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800 antialiased selection:bg-brand-500 selection:text-white flex flex-col">
@@ -41,7 +60,7 @@
   <!-- メインラッパー -->
   <div class="max-w-[1600px] w-full mx-auto p-2 sm:p-4 flex-1 flex flex-col gap-2.5">
     
-    <!-- 最上部ヘッダー（白背景カード） -->
+    <!-- 1. 最上部ヘッダー（白背景カード） -->
     <header class="bg-white rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
       <!-- 左側：アイコン ＋ アプリ名 ＋ 同期ステータス -->
       <div class="flex items-center gap-2.5">
@@ -115,7 +134,7 @@
       </div>
     </header>
 
-    <!-- メインコンテンツ -->
+    <!-- 2. メインコンテンツ（左サイドバー ＋ 右カレンダー） -->
     <div class="flex flex-col md:flex-row gap-3 flex-1 min-w-0">
       
       <!-- メインビュー（カレンダー / マトリクス） -->
@@ -142,7 +161,7 @@
             </div>
             <div class="flex items-center gap-1">
               <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
-              <span>休校日</span>
+              <span>☕ 休校日</span>
             </div>
           </div>
         </div>
@@ -167,7 +186,7 @@
         </div>
       </main>
 
-      <!-- サイドバー -->
+      <!-- サイドバー（PC左側・スマホ下側） -->
       <aside class="w-full md:w-64 lg:w-72 flex flex-col gap-2.5 shrink-0 order-2 md:order-1">
         
         <!-- カード1: コーチ名簿 -->
@@ -183,7 +202,7 @@
               <button onclick="toggleAllFilters(false)" class="text-slate-400 hover:underline">解除</button>
             </div>
           </div>
-          <div id="sidebar-coach-list" class="space-y-1 max-h-44 overflow-y-auto pr-1"></div>
+          <div id="sidebar-coach-list" class="space-y-1 max-h-40 overflow-y-auto pr-1"></div>
         </div>
 
         <!-- カード2: 一括コマ登録・リセット -->
@@ -233,12 +252,68 @@
             </div>
           </div>
         </div>
+
+        <!-- ★カード4: 応援マスコット「コーチペン太（🐧）」イラスト＆会話ギミック -->
+        <div id="mascot-card" onclick="pokeMascot()" class="bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/80 rounded-2xl p-3 shadow-xs border border-indigo-100 flex items-center gap-3 cursor-pointer select-none hover:shadow-md hover:border-indigo-200 transition-all group" title="タップしてペン太をつついてみてね！">
+          <!-- ペン太のSVGイラスト -->
+          <div id="mascot-avatar" class="relative shrink-0 transition-transform">
+            <svg class="w-12 h-12 drop-shadow-xs transition-transform group-hover:scale-105" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- 体 -->
+              <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+              <!-- お腹の白毛 -->
+              <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+              <!-- 顔のハイライト -->
+              <circle cx="27" cy="26" r="3" fill="#FFFFFF"/>
+              <circle cx="37" cy="26" r="3" fill="#FFFFFF"/>
+              <!-- 目 -->
+              <circle cx="27" cy="26" r="1.8" fill="#1E1B4B"/>
+              <circle cx="37" cy="26" r="1.8" fill="#1E1B4B"/>
+              <!-- メガネのフレーム -->
+              <circle cx="27" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
+              <circle cx="37" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
+              <line x1="31.5" y1="26" x2="32.5" y2="26" stroke="#F59E0B" stroke-width="1.4"/>
+              <!-- くちばし -->
+              <path d="M29 30 L35 30 L32 35 Z" fill="#F97316"/>
+              <!-- ほっぺのチーク -->
+              <ellipse cx="22" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
+              <ellipse cx="42" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
+              <!-- バインダーを抱える手 -->
+              <rect x="36" y="36" width="13" height="17" rx="2" fill="#4F46E5" stroke="#3730A3" stroke-width="1"/>
+              <rect x="39" y="39" width="7" height="11" rx="1" fill="#EEF2FF"/>
+              <ellipse cx="34" cy="45" rx="3.5" ry="5" fill="#312E81" transform="rotate(-20 34 45)"/>
+              <ellipse cx="20" cy="43" rx="3.5" ry="6" fill="#312E81" transform="rotate(25 20 43)"/>
+              <!-- 足 -->
+              <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+              <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+            </svg>
+            <span class="absolute -top-1 -right-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-brand-500 text-[8px] text-white items-center justify-center font-bold">♪</span>
+            </span>
+          </div>
+
+          <!-- 吹き出しメッセージ -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-0.5">
+              <span class="text-[10px] font-extrabold text-indigo-900 flex items-center gap-1">
+                <span>コーチペン太</span>
+                <span class="text-[9px] font-normal text-indigo-400">（タップしてね）</span>
+              </span>
+              <span class="text-[9px] font-bold bg-indigo-100/80 text-indigo-600 px-1.5 py-0.2 rounded-full">応援中</span>
+            </div>
+            <p id="mascot-speech" class="text-[11px] font-bold text-slate-700 leading-snug transition-all duration-200 min-h-[28px] flex items-center">
+              シフト共有お疲れ様です！✨
+            </p>
+          </div>
+        </div>
       </aside>
 
     </div>
   </div>
 
-  <!-- 1. 操作者選択モーダル（ヘッダーから開く用） -->
+  <!-- 各種モーダル -->
+
+  <!-- 1. 操作者選択モーダル -->
   <div id="modal-select-coach" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl max-w-xs w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3">
       <div class="flex items-center justify-between border-b pb-2">
@@ -258,7 +333,10 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h3 id="shift-modal-date" class="font-extrabold text-slate-800 text-base">9月2日(水)</h3>
-            <span id="shift-modal-holiday-badge" class="hidden text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-md">休校日</span>
+            <span id="shift-modal-holiday-badge" class="hidden text-[10px] font-extrabold text-rose-600 bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span>☕</span>
+              <span>休校日（おやすみ）</span>
+            </span>
           </div>
           <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
             <span class="font-bold">あなたの名前:</span>
@@ -267,6 +345,15 @@
           </div>
         </div>
         <button onclick="closeModal('modal-shift')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+      </div>
+
+      <!-- 休校日用ふんわりメッセージバナー -->
+      <div id="shift-modal-holiday-banner" class="hidden bg-gradient-to-r from-rose-50 via-pink-50 to-amber-50 border border-rose-200/80 rounded-xl p-2.5 flex items-center gap-2.5 text-xs text-rose-700 font-bold shadow-2xs">
+        <span class="text-xl">☕</span>
+        <div>
+          <span class="block text-rose-800 font-black text-xs">本日は休校日です♪</span>
+          <span class="text-[10px] text-rose-500 font-medium">しっかり休んでエネルギーをチャージしてね✨</span>
+        </div>
       </div>
 
       <!-- その日の全体サマリー（誰が出勤可能か一覧） -->
@@ -289,7 +376,7 @@
     </div>
   </div>
 
-  <!-- 3. 一括コマ登録モーダル（直接セレクト仕様） -->
+  <!-- 3. 一括コマ登録モーダル（全期間一括登録タブ・崩れない直接セレクト仕様） -->
   <div id="modal-bulk" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-2">
@@ -297,7 +384,7 @@
         <button onclick="closeModal('modal-bulk')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
 
-      <!-- タブ切り替え -->
+      <!-- タブ切り替え（出勤コマ vs 休校日） -->
       <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
         <button id="bulk-tab-shift" onclick="switchBulkTab('shift')" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs">💼 出勤コマの一括</button>
         <button id="bulk-tab-holiday" onclick="switchBulkTab('holiday')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">🎌 休校日の一括設定</button>
@@ -305,11 +392,21 @@
 
       <!-- コマ一括設定 -->
       <div id="bulk-sec-shift" class="space-y-3">
+        <!-- 操作コーチ選択 -->
         <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 gap-2">
           <span class="text-xs font-bold text-slate-600 shrink-0">操作コーチ:</span>
           <div class="flex items-center gap-1.5 flex-1 max-w-[200px]">
             <select id="bulk-coach-select" onchange="handleBulkCoachSelect(this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-extrabold text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shadow-2xs">
             </select>
+          </div>
+        </div>
+
+        <!-- ★全期間一括登録タブ（当月のみ vs 全期間） -->
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">対象期間</label>
+          <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button id="bulk-scope-month" type="button" onclick="setBulkShiftScope(false)" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all">当月のみ</button>
+            <button id="bulk-scope-all" type="button" onclick="setBulkShiftScope(true)" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all">全期間 (9月〜1月)</button>
           </div>
         </div>
 
@@ -324,8 +421,8 @@
         </div>
 
         <div class="grid grid-cols-2 gap-2 pt-2 border-t">
-          <button onclick="executeBulkAction('delete')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl border border-rose-200 transition-all">一括削除</button>
-          <button onclick="executeBulkAction('add')" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-md transition-all">一括登録</button>
+          <button id="btn-bulk-shift-del" onclick="executeBulkAction('delete')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl border border-rose-200 transition-all">当月を一括削除</button>
+          <button id="btn-bulk-shift-add" onclick="executeBulkAction('add')" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-md transition-all">当月を一括登録</button>
         </div>
       </div>
 
@@ -422,6 +519,7 @@
     let selectedDateStr = '';
     let selectedDayNum = 1;
     let selectedDayOfWeek = 0;
+    let bulkShiftAllMonths = false;
 
     let coaches = ['諏訪', '佐藤', '鈴木', '高橋', '田中'];
     let visibleCoaches = ['諏訪', '佐藤', '鈴木', '高橋', '田中'];
@@ -430,6 +528,7 @@
 
     let eventSource = null;
 
+    // --- リアルタイム同期エンジン ---
     async function fetchRemoteData(isManual = false) {
       if (isManual) {
         const icon = document.getElementById('reload-icon');
@@ -556,6 +655,7 @@
       }
     }
 
+    // --- アプリ初期化 ---
     function initApp() {
       if (!coaches.includes(activeCoach) && coaches.length > 0) {
         activeCoach = coaches[0];
@@ -702,6 +802,7 @@
       handleFilterCheckboxChange();
     }
 
+    // --- 月ナビゲーション ---
     function updateMonthDisplay() {
       const titleEl = document.getElementById('current-month-display');
       if (titleEl) titleEl.innerText = `${currentYear}年 ${currentMonth + 1}月`;
@@ -771,6 +872,7 @@
       }
     }
 
+    // --- カレンダー描画（1コマ1行まとめ表示） ---
     function renderCalendar() {
       const grid = document.getElementById('calendar-grid');
       if (!grid) return;
@@ -791,8 +893,8 @@
         const isHoliday = closedDays.includes(dateStr);
 
         const cell = document.createElement('div');
-        cell.className = `border-r border-b border-slate-200 p-1 flex flex-col justify-between hover:bg-slate-50/80 transition-all cursor-pointer min-h-[90px] ${
-          isHoliday ? 'bg-rose-50/40' : 'bg-white'
+        cell.className = `border-r border-b border-slate-200 p-1 flex flex-col justify-between transition-all cursor-pointer min-h-[90px] ${
+          isHoliday ? 'holiday-cell' : 'bg-white hover:bg-slate-50/80'
         }`;
         cell.onclick = () => openShiftModal(dateStr, d, dayOfWeek);
 
@@ -804,14 +906,20 @@
         topRow.className = 'flex items-center justify-between mb-1';
         topRow.innerHTML = `
           <span class="text-xs font-bold ${numColor}">${d}</span>
-          ${isHoliday ? '<span class="text-[9px] font-extrabold text-rose-600 bg-rose-100 px-1 rounded">休校</span>' : ''}
+          ${isHoliday ? `
+            <span class="text-[9px] font-black text-rose-600 bg-white/95 border border-rose-200 px-1.5 py-0.5 rounded-full shadow-2xs flex items-center gap-0.5">
+              <span>💤</span>
+              <span>休校</span>
+            </span>
+          ` : ''}
         `;
         cell.appendChild(topRow);
 
         const cardsContainer = document.createElement('div');
-        cardsContainer.className = 'space-y-1 flex-1';
+        cardsContainer.className = 'space-y-1 flex-1 flex flex-col justify-start';
 
         const dayShifts = shiftData[dateStr] || {};
+        let totalPeriodsCount = 0;
         
         PERIODS.forEach(period => {
           const coachesInPeriod = [];
@@ -823,6 +931,7 @@
           });
 
           if (coachesInPeriod.length > 0) {
+            totalPeriodsCount++;
             const count = coachesInPeriod.length;
             const isMany = (count >= 3);
             const cardBg = isMany ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900';
@@ -844,11 +953,29 @@
           }
         });
 
+        // ★休校日で誰も入っていない場合、可愛いティーカップの「おやすみ」スタンプを表示！
+        if (isHoliday && totalPeriodsCount === 0) {
+          const stamp = document.createElement('div');
+          stamp.className = 'flex-1 flex flex-col items-center justify-center py-1.5 text-rose-300 select-none opacity-85 group-hover:scale-105 transition-transform';
+          stamp.innerHTML = `
+            <svg class="w-5 h-5 text-rose-400/80 drop-shadow-2xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
+              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+              <line x1="6" y1="2" x2="6" y2="4"/>
+              <line x1="10" y1="2" x2="10" y2="4"/>
+              <line x1="14" y1="2" x2="14" y2="4"/>
+            </svg>
+            <span class="text-[9px] font-black text-rose-400 mt-0.5 tracking-tight">おやすみ☕</span>
+          `;
+          cardsContainer.appendChild(stamp);
+        }
+
         cell.appendChild(cardsContainer);
         grid.appendChild(cell);
       }
     }
 
+    // --- 全コママトリクス描画 ---
     function renderMatrix() {
       const wrap = document.getElementById('matrix-table-wrap');
       if (!wrap) return;
@@ -914,6 +1041,7 @@
       wrap.innerHTML = html;
     }
 
+    // --- 個別シフト登録モーダル ---
     function openShiftModal(dateStr, dayNum, dayOfWeek) {
       selectedDateStr = dateStr;
       selectedDayNum = dayNum;
@@ -950,15 +1078,18 @@
     function updateHolidayButtonUI() {
       const isHoliday = closedDays.includes(selectedDateStr);
       const badge = document.getElementById('shift-modal-holiday-badge');
+      const banner = document.getElementById('shift-modal-holiday-banner');
       const btn = document.getElementById('btn-toggle-holiday');
 
       if (badge && btn) {
         if (isHoliday) {
           badge.classList.remove('hidden');
+          if (banner) banner.classList.remove('hidden');
           btn.className = 'w-full py-2 px-3 rounded-xl text-xs font-bold transition-all border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 flex items-center justify-center gap-1.5';
           btn.innerHTML = '<span>✓ 休校日を解除する</span>';
         } else {
           badge.classList.add('hidden');
+          if (banner) banner.classList.add('hidden');
           btn.className = 'w-full py-2 px-3 rounded-xl text-xs font-bold transition-all border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1.5';
           btn.innerHTML = '<span>🎌 この日を休校日に設定する</span>';
         }
@@ -975,7 +1106,7 @@
       broadcastData();
     }
 
-    // --- 日付タップ時の詳細：誰が出勤可能か一目でわかるリスト ＆ 操作者の登録ボタン ---
+    // --- 日付タップ時の詳細表示（出勤可能メンバーがひと目でわかる仕様） ---
     function renderShiftButtons() {
       const container = document.getElementById('shift-period-buttons');
       const summaryContainer = document.getElementById('shift-modal-day-summary');
@@ -1005,8 +1136,19 @@
           `;
         } else {
           summaryContainer.innerHTML = `
-            <div class="text-[11px] font-bold text-slate-400 text-center py-1 flex items-center justify-center gap-1">
-              <span>📭</span> まだこの日の出勤可能登録はありません
+            <div class="flex items-center justify-center gap-2 py-1 text-slate-500">
+              <svg class="w-8 h-8 text-indigo-400 shrink-0" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="18" cy="18" r="16" fill="#EEF2FF"/>
+                <path d="M22 11 A 9 9 0 0 1 14 24 A 9 9 0 0 1 22 11" fill="#F59E0B"/>
+                <circle cx="25" cy="15" r="1" fill="#818CF8"/>
+                <circle cx="11" cy="13" r="0.8" fill="#818CF8"/>
+                <text x="21" y="22" font-size="6" font-weight="bold" fill="#6366F1">z</text>
+                <text x="24" y="19" font-size="4" font-weight="bold" fill="#818CF8">z</text>
+              </svg>
+              <div class="text-[11px]">
+                <span class="font-bold text-slate-700 block">まだこの日の登録はありません</span>
+                <span class="text-[10px] text-slate-400">下のコマから出勤可能を登録できます✨</span>
+              </div>
             </div>
           `;
         }
@@ -1109,8 +1251,10 @@
       broadcastData();
     }
 
+    // --- 一括登録モーダル（全期間一括対応） ---
     function openBulkModal(initialTab = 'shift') {
       updateActiveCoachUI();
+      setBulkShiftScope(false);
 
       const dayContainer = document.getElementById('bulk-day-checkboxes');
       if (dayContainer) {
@@ -1156,6 +1300,26 @@
       openModal('modal-bulk');
     }
 
+    function setBulkShiftScope(all) {
+      bulkShiftAllMonths = all;
+      const btnMonth = document.getElementById('bulk-scope-month');
+      const btnAll = document.getElementById('bulk-scope-all');
+      const btnAdd = document.getElementById('btn-bulk-shift-add');
+      const btnDel = document.getElementById('btn-bulk-shift-del');
+
+      if (all) {
+        if (btnMonth) btnMonth.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
+        if (btnAll) btnAll.className = 'py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all';
+        if (btnAdd) btnAdd.innerText = '全期間を一括登録';
+        if (btnDel) btnDel.innerText = '全期間を一括削除';
+      } else {
+        if (btnMonth) btnMonth.className = 'py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all';
+        if (btnAll) btnAll.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
+        if (btnAdd) btnAdd.innerText = '当月を一括登録';
+        if (btnDel) btnDel.innerText = '当月を一括削除';
+      }
+    }
+
     function switchBulkTab(tab) {
       const secShift = document.getElementById('bulk-sec-shift');
       const secHoliday = document.getElementById('bulk-sec-holiday');
@@ -1188,30 +1352,43 @@
         return;
       }
 
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateObj = new Date(currentYear, currentMonth, d);
-        const dayOfWeek = dateObj.getDay();
+      const targetMonths = bulkShiftAllMonths
+        ? [
+            { y: 2026, m: 8 },  // 9月
+            { y: 2026, m: 9 },  // 10月
+            { y: 2026, m: 10 }, // 11月
+            { y: 2026, m: 11 }, // 12月
+            { y: 2027, m: 0 }   // 1月
+          ]
+        : [{ y: currentYear, m: currentMonth }];
 
-        if (selectedDays.includes(dayOfWeek)) {
-          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          if (!shiftData[dateStr]) shiftData[dateStr] = {};
-          if (!shiftData[dateStr][activeCoach]) shiftData[dateStr][activeCoach] = [];
+      targetMonths.forEach(({ y, m }) => {
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateObj = new Date(y, m, d);
+          const dayOfWeek = dateObj.getDay();
 
-          let currentList = shiftData[dateStr][activeCoach];
-          if (action === 'add') {
-            selectedPeriods.forEach(p => {
-              if (!currentList.includes(p)) currentList.push(p);
-            });
-          } else if (action === 'delete') {
-            shiftData[dateStr][activeCoach] = currentList.filter(p => !selectedPeriods.includes(p));
+          if (selectedDays.includes(dayOfWeek)) {
+            const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            if (!shiftData[dateStr]) shiftData[dateStr] = {};
+            if (!shiftData[dateStr][activeCoach]) shiftData[dateStr][activeCoach] = [];
+
+            let currentList = shiftData[dateStr][activeCoach];
+            if (action === 'add') {
+              selectedPeriods.forEach(p => {
+                if (!currentList.includes(p)) currentList.push(p);
+              });
+            } else if (action === 'delete') {
+              shiftData[dateStr][activeCoach] = currentList.filter(p => !selectedPeriods.includes(p));
+            }
           }
         }
-      }
+      });
 
       broadcastData();
       closeModal('modal-bulk');
-      showNotice(action === 'add' ? '一括登録が完了しました！' : '一括削除が完了しました！');
+      const targetText = bulkShiftAllMonths ? '全期間（9月〜1月）の' : '';
+      showNotice(action === 'add' ? `${targetText}一括登録が完了しました！` : `${targetText}一括削除が完了しました！`);
     }
 
     function setAllSundaysHoliday(allMonths = false) {
@@ -1273,6 +1450,7 @@
       showNotice('休校日の一括設定を反映しました！');
     }
 
+    // --- 管理者パネル & Enterキー制御 ---
     function handleAdminPassKeydown(event) {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -1425,6 +1603,7 @@
       showNotice(`「${name}」コーチを削除しました`);
     }
 
+    // --- トースト通知 & モーダルヘルパー ---
     function showNotice(msg) {
       const existing = document.getElementById('toast-notice');
       if (existing) existing.remove();
@@ -1448,6 +1627,37 @@
     function closeModal(id) {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
+    }
+
+    // --- ペン太マスコットの楽しい応援ギミック ---
+    const MASCOT_MESSAGES = [
+      'シフト共有お疲れ様です！✨',
+      '今日も生徒のためにファイト！🔥',
+      'あなたのコマ登録が教室を救う！🐧',
+      '日曜日はゆっくり休んでね🎌',
+      'いつも丁寧な指導ありがとう！👏',
+      'コマの調整バッチリいこう！💪',
+      '体調にも気をつけてね☕'
+    ];
+    let mascotMsgIdx = 0;
+
+    function pokeMascot() {
+      const avatar = document.getElementById('mascot-avatar');
+      const speech = document.getElementById('mascot-speech');
+      if (avatar) {
+        avatar.classList.remove('animate-mascot-jump');
+        void avatar.offsetWidth;
+        avatar.classList.add('animate-mascot-jump');
+      }
+
+      if (speech) {
+        speech.style.opacity = '0';
+        setTimeout(() => {
+          mascotMsgIdx = (mascotMsgIdx + 1) % MASCOT_MESSAGES.length;
+          speech.innerText = MASCOT_MESSAGES[mascotMsgIdx];
+          speech.style.opacity = '1';
+        }, 120);
+      }
     }
 
     if (document.readyState === 'loading') {
