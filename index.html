@@ -17,10 +17,16 @@
               '0%, 100%': { transform: 'translateY(0) scale(1)' },
               '40%': { transform: 'translateY(-8px) scale(1.08)' },
               '70%': { transform: 'translateY(2px) scale(0.96)' }
+            },
+            wiggle: {
+              '0%, 100%': { transform: 'rotate(0deg)' },
+              '25%': { transform: 'rotate(-8deg) scale(1.05)' },
+              '75%': { transform: 'rotate(8deg) scale(1.05)' }
             }
           },
           animation: {
-            'mascot-jump': 'jump 0.4s ease-out'
+            'mascot-jump': 'jump 0.4s ease-out',
+            'mascot-wiggle': 'wiggle 0.35s ease-in-out'
           }
         }
       }
@@ -52,6 +58,30 @@
     }
     .holiday-cell:hover {
       background-color: #ffe4e6;
+    }
+    /* ★大当たり・超激レア演出用スタイル */
+    @keyframes gold-shine {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .jackpot-active {
+      background: linear-gradient(135deg, #fef08a, #f59e0b, #fbbf24, #fde047, #f59e0b) !important;
+      background-size: 300% 300% !important;
+      animation: gold-shine 2.5s ease infinite, jump 0.5s ease-out !important;
+      border-color: #b45309 !important;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.8) !important;
+    }
+    .sparkle-particle {
+      position: absolute;
+      pointer-events: none;
+      user-select: none;
+      animation: particle-fly 0.85s ease-out forwards;
+      z-index: 30;
+    }
+    @keyframes particle-fly {
+      0% { transform: translate(0, 0) scale(0.5) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(1.4) rotate(var(--rot)); opacity: 0; }
     }
   </style>
 </head>
@@ -253,55 +283,34 @@
           </div>
         </div>
 
-        <!-- ★カード4: 応援マスコット「コーチペン太（🐧）」イラスト＆会話ギミック -->
-        <div id="mascot-card" onclick="pokeMascot()" class="bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/80 rounded-2xl p-3 shadow-xs border border-indigo-100 flex items-center gap-3 cursor-pointer select-none hover:shadow-md hover:border-indigo-200 transition-all group" title="タップしてペン太をつついてみてね！">
-          <!-- ペン太のSVGイラスト -->
+        <!-- ★カード4: 応援マスコット「コーチペン太（🐧）」変身＆音声ギミック付き -->
+        <div id="mascot-card" onclick="pokeMascot()" class="bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/80 rounded-2xl p-3 shadow-xs border border-indigo-100 flex items-center gap-3 cursor-pointer select-none hover:shadow-md hover:border-indigo-200 transition-all group relative overflow-hidden" title="タップしてペン太をつついて変身させてね！">
+          <!-- 音声ON/OFF切り替えミニボタン -->
+          <button id="mascot-sound-btn" onclick="toggleMascotSound(event)" class="absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/90 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-2xs z-10 flex items-center gap-0.5" title="効果音のON/OFF">
+            <span id="sound-btn-icon">🔊</span>
+          </button>
+
+          <!-- ペン太の動的SVGイラストコンテナ -->
           <div id="mascot-avatar" class="relative shrink-0 transition-transform">
-            <svg class="w-12 h-12 drop-shadow-xs transition-transform group-hover:scale-105" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- 体 -->
-              <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
-              <!-- お腹の白毛 -->
-              <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
-              <!-- 顔のハイライト -->
-              <circle cx="27" cy="26" r="3" fill="#FFFFFF"/>
-              <circle cx="37" cy="26" r="3" fill="#FFFFFF"/>
-              <!-- 目 -->
-              <circle cx="27" cy="26" r="1.8" fill="#1E1B4B"/>
-              <circle cx="37" cy="26" r="1.8" fill="#1E1B4B"/>
-              <!-- メガネのフレーム -->
-              <circle cx="27" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
-              <circle cx="37" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
-              <line x1="31.5" y1="26" x2="32.5" y2="26" stroke="#F59E0B" stroke-width="1.4"/>
-              <!-- くちばし -->
-              <path d="M29 30 L35 30 L32 35 Z" fill="#F97316"/>
-              <!-- ほっぺのチーク -->
-              <ellipse cx="22" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
-              <ellipse cx="42" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
-              <!-- バインダーを抱える手 -->
-              <rect x="36" y="36" width="13" height="17" rx="2" fill="#4F46E5" stroke="#3730A3" stroke-width="1"/>
-              <rect x="39" y="39" width="7" height="11" rx="1" fill="#EEF2FF"/>
-              <ellipse cx="34" cy="45" rx="3.5" ry="5" fill="#312E81" transform="rotate(-20 34 45)"/>
-              <ellipse cx="20" cy="43" rx="3.5" ry="6" fill="#312E81" transform="rotate(25 20 43)"/>
-              <!-- 足 -->
-              <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
-              <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
-            </svg>
-            <span class="absolute -top-1 -right-1 flex h-3 w-3">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-brand-500 text-[8px] text-white items-center justify-center font-bold">♪</span>
+            <div id="mascot-svg-wrap" class="w-14 h-14 drop-shadow-xs transition-all group-hover:scale-105">
+              <!-- JSで動的にSVGを描画 -->
+            </div>
+            <span id="mascot-mode-badge" class="absolute -bottom-1 -right-1 text-[8px] font-black bg-indigo-600 text-white px-1 rounded-full shadow-xs border border-white">
+              通常
             </span>
           </div>
 
           <!-- 吹き出しメッセージ -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between mb-0.5">
-              <span class="text-[10px] font-extrabold text-indigo-900 flex items-center gap-1">
+          <div class="flex-1 min-w-0 pr-5">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-[11px] font-black text-indigo-900 flex items-center gap-1">
                 <span>コーチペン太</span>
-                <span class="text-[9px] font-normal text-indigo-400">（タップしてね）</span>
               </span>
-              <span class="text-[9px] font-bold bg-indigo-100/80 text-indigo-600 px-1.5 py-0.2 rounded-full">応援中</span>
+              <span id="mascot-role-label" class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded-full">
+                応援中
+              </span>
             </div>
-            <p id="mascot-speech" class="text-[11px] font-bold text-slate-700 leading-snug transition-all duration-200 min-h-[28px] flex items-center">
+            <p id="mascot-speech" class="text-[11px] font-bold text-slate-700 leading-snug transition-all duration-200 min-h-[32px] flex items-center">
               シフト共有お疲れ様です！✨
             </p>
           </div>
@@ -1629,36 +1638,529 @@
       if (el) el.classList.add('hidden');
     }
 
-    // --- ペン太マスコットの楽しい応援ギミック ---
-    const MASCOT_MESSAGES = [
-      'シフト共有お疲れ様です！✨',
-      '今日も生徒のためにファイト！🔥',
-      'あなたのコマ登録が教室を救う！🐧',
-      '日曜日はゆっくり休んでね🎌',
-      'いつも丁寧な指導ありがとう！👏',
-      'コマの調整バッチリいこう！💪',
-      '体調にも気をつけてね☕'
+    // --- ★ペン太のWeb Audio API シンセ効果音エンジン ---
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function toggleMascotSound(e) {
+      e.stopPropagation();
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('sound-btn-icon');
+      if (icon) icon.innerText = soundEnabled ? '🔊' : '🔇';
+      showNotice(soundEnabled ? 'ペン太の効果音をONにしました♪' : 'ペン太の効果音をミュートにしました');
+    }
+
+    // 可愛いピコピコ効果音を周波数合成で再生
+    function playMascotSound(type = 'jump') {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        if (type === 'jackpot') {
+          // ★超豪華大当たりファンファーレ！（タタタ・タッターーーン！🎺✨）
+          const notes = [
+            { f: 523.25, d: 0.08, t: 0.0 },    // ド
+            { f: 659.25, d: 0.08, t: 0.09 },   // ミ
+            { f: 783.99, d: 0.08, t: 0.18 },   // ソ
+            { f: 1046.50, d: 0.32, t: 0.28 },  // 高いド！
+            { f: 880.00, d: 0.1, t: 0.62 },    // ラ
+            { f: 1046.50, d: 0.45, t: 0.74 }   // 高いドーーーン！
+          ];
+          notes.forEach(({ f, d, t }) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, now + t);
+            gain.gain.setValueAtTime(0.24, now + t);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + t + d);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + t);
+            osc.stop(now + t + d);
+          });
+          // キラキラ高音ハーモニー重畳
+          [1318.51, 1567.98, 2093.00].forEach((freq, idx) => {
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq, now + 0.75 + idx * 0.06);
+            gain2.gain.setValueAtTime(0.12, now + 0.75 + idx * 0.06);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.75 + idx * 0.06);
+            osc2.stop(now + 1.2);
+          });
+        } else if (type === 'jump') {
+          // ピョイン！
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(750, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } else if (type === 'sparkle') {
+          // キラキラーン✨ (2音チャイム)
+          [659.25, 987.77, 1318.51].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.06);
+            gain.gain.setValueAtTime(0.18, now + i * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.18);
+          });
+        } else if (type === 'cheer') {
+          // ファンファーレ風ピロリン！
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.05);
+            gain.gain.setValueAtTime(0.15, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.14);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.14);
+          });
+        } else if (type === 'cafe') {
+          // コロン♪（ウッドブロック風）
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        } else {
+          // ポヨッ！
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        }
+      } catch (e) {
+        // audio blocked or not supported
+      }
+    }
+
+    // --- ★ペン太の6変化バリエーション ＆ 豊富セリフ集 ---
+    const MASCOT_VARIANTS = [
+      {
+        id: 'normal',
+        badge: '通常',
+        role: '応援中',
+        sound: 'jump',
+        speech: [
+          'シフト共有お疲れ様です！✨',
+          'あなたのコマ登録が教室を救うペン！🐧',
+          'いつも丁寧な指導ありがとうペン！👏'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <circle cx="27" cy="26" r="3" fill="#FFFFFF"/>
+            <circle cx="37" cy="26" r="3" fill="#FFFFFF"/>
+            <circle cx="27" cy="26" r="1.8" fill="#1E1B4B"/>
+            <circle cx="37" cy="26" r="1.8" fill="#1E1B4B"/>
+            <circle cx="27" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
+            <circle cx="37" cy="26" r="4.5" stroke="#F59E0B" stroke-width="1.4" fill="none"/>
+            <line x1="31.5" y1="26" x2="32.5" y2="26" stroke="#F59E0B" stroke-width="1.4"/>
+            <path d="M29 30 L35 30 L32 35 Z" fill="#F97316"/>
+            <ellipse cx="22" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
+            <ellipse cx="42" cy="31" rx="2.5" ry="1.5" fill="#FDA4AF"/>
+            <rect x="36" y="36" width="13" height="17" rx="2" fill="#4F46E5" stroke="#3730A3" stroke-width="1"/>
+            <rect x="39" y="39" width="7" height="11" rx="1" fill="#EEF2FF"/>
+            <ellipse cx="34" cy="45" rx="3.5" ry="5" fill="#312E81" transform="rotate(-20 34 45)"/>
+            <ellipse cx="20" cy="43" rx="3.5" ry="6" fill="#312E81" transform="rotate(25 20 43)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      },
+      {
+        id: 'hachimaki',
+        badge: '熱血',
+        role: '気合十分🔥',
+        sound: 'cheer',
+        speech: [
+          '気合い入れて生徒を合格へ導くペン！🔥',
+          '今日の授業も全力投球でファイト！💪',
+          '先生の一言が生徒の未来を変えるペン！✨'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <!-- 必勝ハチマキ -->
+            <path d="M12 21 Q32 17 52 21" stroke="#EF4444" stroke-width="4.5" stroke-linecap="round"/>
+            <circle cx="32" cy="19" r="2.5" fill="#FFFFFF"/>
+            <path d="M49 20 L57 16 M50 22 L58 25" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- キリッとした目 -->
+            <path d="M24 23 L30 26" stroke="#1E1B4B" stroke-width="2" stroke-linecap="round"/>
+            <path d="M40 23 L34 26" stroke="#1E1B4B" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="28" cy="27" r="2" fill="#1E1B4B"/>
+            <circle cx="36" cy="27" r="2" fill="#1E1B4B"/>
+            <path d="M29 30 L35 30 L32 35 Z" fill="#F97316"/>
+            <ellipse cx="21" cy="32" rx="2.5" ry="1.5" fill="#F87171"/>
+            <ellipse cx="43" cy="32" rx="2.5" ry="1.5" fill="#F87171"/>
+            <!-- 赤いメガホン -->
+            <path d="M37 36 L49 32 L47 48 L37 42 Z" fill="#EF4444" stroke="#B91C1C" stroke-width="1"/>
+            <ellipse cx="48" cy="40" rx="2" ry="7" fill="#FCA5A5"/>
+            <ellipse cx="20" cy="43" rx="3.5" ry="6" fill="#312E81" transform="rotate(30 20 43)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      },
+      {
+        id: 'cafe',
+        badge: 'カフェ',
+        role: 'ほっこり☕',
+        sound: 'cafe',
+        speech: [
+          'たまにはコーヒー飲んで息抜きするペン☕',
+          '休校日はしっかり休んで充電してね🎌',
+          '美味しいスイーツ食べてリフレッシュペン🍰'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <!-- カフェベレー帽 -->
+            <ellipse cx="30" cy="18" rx="13" ry="5.5" fill="#78350F" transform="rotate(-10 30 18)"/>
+            <circle cx="28" cy="12" r="1.8" fill="#78350F"/>
+            <!-- にっこり目 -->
+            <path d="M25 27 Q28 24 30 27" stroke="#1E1B4B" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M34 27 Q36 24 39 27" stroke="#1E1B4B" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M29 31 L35 31 L32 35 Z" fill="#F97316"/>
+            <ellipse cx="22" cy="32" rx="3" ry="2" fill="#FDA4AF"/>
+            <ellipse cx="42" cy="32" rx="3" ry="2" fill="#FDA4AF"/>
+            <!-- マグカップ -->
+            <rect x="36" y="38" width="10" height="9" rx="2" fill="#F43F5E"/>
+            <path d="M46 40 Q49 42 46 45" stroke="#F43F5E" stroke-width="2" fill="none"/>
+            <!-- 湯気 -->
+            <path d="M39 35 Q41 33 39 31" stroke="#FB7185" stroke-width="1.2" fill="none"/>
+            <path d="M43 36 Q45 34 43 32" stroke="#FB7185" stroke-width="1.2" fill="none"/>
+            <ellipse cx="21" cy="42" rx="3.5" ry="5" fill="#312E81" transform="rotate(20 21 42)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      },
+      {
+        id: 'doctor',
+        badge: '博士',
+        role: 'ひらめき💡',
+        sound: 'sparkle',
+        speech: [
+          '美しいシフト割のアイデアがひらめいたペン！💡',
+          '効率的な時間割でバッチリ指導ペン！📐',
+          'あなたの熱意が生徒に伝わっているペン！🌟'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <!-- アカデミック角帽（博士帽） -->
+            <polygon points="32,10 47,15 32,20 17,15" fill="#1E1B4B"/>
+            <rect x="26" y="18" width="12" height="4" fill="#1E1B4B"/>
+            <path d="M44 16 L46 25" stroke="#F59E0B" stroke-width="1.5"/>
+            <circle cx="46" cy="26" r="1.5" fill="#F59E0B"/>
+            <!-- キラキラ目 -->
+            <circle cx="27" cy="27" r="2.2" fill="#1E1B4B"/>
+            <circle cx="37" cy="27" r="2.2" fill="#1E1B4B"/>
+            <polygon points="26,26 28,26 27,25" fill="#FFFFFF"/>
+            <polygon points="36,26 38,26 37,25" fill="#FFFFFF"/>
+            <path d="M29 31 L35 31 L32 35 Z" fill="#F97316"/>
+            <!-- ひらめき電球手持ち -->
+            <circle cx="44" cy="37" r="5" fill="#FDE047" stroke="#CA8A04" stroke-width="1"/>
+            <rect x="42.5" y="42" width="3" height="3" fill="#94A3B8"/>
+            <line x1="44" y1="30" x2="44" y2="28" stroke="#F59E0B" stroke-width="1.5"/>
+            <line x1="50" y1="33" x2="52" y2="32" stroke="#F59E0B" stroke-width="1.5"/>
+            <ellipse cx="20" cy="42" rx="3.5" ry="5" fill="#312E81" transform="rotate(20 20 42)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      },
+      {
+        id: 'sleepy',
+        badge: 'おやすみ',
+        role: '夢の中💤',
+        sound: 'jump',
+        speech: [
+          '夜遅くまでのコマ指導、本当にお疲れ様ペン…🌙',
+          '睡眠は最高の特効薬ペン…ぐぅ…💤',
+          '明日も元気にがんばるペン〜ふわぁ…🥱'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <!-- ナイトキャップ（ナイト帽子） -->
+            <path d="M19 22 Q32 14 45 22 Q52 30 50 36" fill="#818CF8"/>
+            <circle cx="50" cy="37" r="3.5" fill="#FFFFFF"/>
+            <!-- すやすや目 (u_u) -->
+            <path d="M24 28 Q27 31 30 28" stroke="#1E1B4B" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M34 28 Q37 31 40 28" stroke="#1E1B4B" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M29 32 L35 32 L32 35 Z" fill="#F97316"/>
+            <!-- ほっぺ＆よだれ bubble -->
+            <circle cx="36" cy="34" r="2" fill="#67E8F9" opacity="0.8"/>
+            <!-- ふかふか枕抱っこ -->
+            <rect x="23" y="40" width="18" height="9" rx="3" fill="#E0E7FF" stroke="#C7D2FE" stroke-width="1" transform="rotate(-5 32 44)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      },
+      {
+        id: 'party',
+        badge: '祝杯',
+        role: '大感激🥳',
+        sound: 'cheer',
+        speech: [
+          'みんなのコマが揃って大感激ペン！🥳🎉',
+          '教室の一体感最高ペン！みんなありがとう！👏',
+          '今日もお祝い気分でハッピー指導ペン！🎊'
+        ],
+        svg: `
+          <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="38" rx="18" ry="20" fill="#312E81"/>
+            <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FFFFFF"/>
+            <!-- とんがりパーティー帽 -->
+            <polygon points="32,8 41,22 23,22" fill="#EC4899"/>
+            <circle cx="32" cy="8" r="2.5" fill="#FACC15"/>
+            <line x1="26" y1="18" x2="38" y2="18" stroke="#FDE047" stroke-width="2"/>
+            <!-- ウインク顔😉 -->
+            <circle cx="27" cy="27" r="2.2" fill="#1E1B4B"/>
+            <path d="M34 27 Q37 25 40 27" stroke="#1E1B4B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M29 31 L35 31 L32 35 Z" fill="#F97316"/>
+            <ellipse cx="21" cy="32" rx="2.5" ry="1.5" fill="#F472B6"/>
+            <ellipse cx="43" cy="32" rx="2.5" ry="1.5" fill="#F472B6"/>
+            <!-- クラッカー＆紙吹雪 -->
+            <polygon points="40,40 50,33 46,45" fill="#F59E0B"/>
+            <circle cx="51" cy="28" r="1.5" fill="#EF4444"/>
+            <circle cx="54" cy="34" r="1.2" fill="#10B981"/>
+            <circle cx="48" cy="24" r="1" fill="#3B82F6"/>
+            <ellipse cx="20" cy="42" rx="3.5" ry="5" fill="#312E81" transform="rotate(25 20 42)"/>
+            <ellipse cx="26" cy="57" rx="4" ry="2" fill="#F97316"/>
+            <ellipse cx="38" cy="57" rx="4" ry="2" fill="#F97316"/>
+          </svg>
+        `
+      }
     ];
-    let mascotMsgIdx = 0;
+
+    // ★超激レア！「黄金のゴッドペン太（SSR）」
+    const GOD_MASCOT_VARIANT = {
+      id: 'god',
+      badge: '🌟 超激レアSSR 🌟',
+      role: '大吉降臨👑',
+      sound: 'jackpot',
+      speech: [
+        '🎉 大当たりーーーッ！！ 今日の運勢はSSR級ペン！👑🌈',
+        'キターーッ！黄金のゴッドペン太降臨！大吉確実ペン！✨',
+        'おめでとうペン！今日シフトを入れたあなたに幸福あれ！🎊💫'
+      ],
+      svg: `
+        <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 後光オーラ -->
+          <circle cx="32" cy="36" r="23" fill="#FEF08A" opacity="0.6"/>
+          <path d="M32 6 L35 15 M52 18 L44 24 M58 36 L48 36 M52 54 L44 48 M32 62 L32 52 M12 54 L20 48 M6 36 L16 36 M12 18 L20 24" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+          <!-- 王者マント -->
+          <path d="M16 35 C10 48, 14 58, 18 58 C24 58, 22 42, 22 36 Z" fill="#DC2626"/>
+          <path d="M48 35 C54 48, 50 58, 46 58 C40 58, 42 42, 42 36 Z" fill="#DC2626"/>
+          <!-- 黄金ボディ -->
+          <ellipse cx="32" cy="38" rx="18" ry="20" fill="#F59E0B"/>
+          <ellipse cx="32" cy="40" rx="12" ry="15" fill="#FEF9C3"/>
+          <!-- 豪華王冠 -->
+          <path d="M22 19 L25 10 L32 15 L39 10 L42 19 Z" fill="#FACC15" stroke="#B45309" stroke-width="1.2"/>
+          <circle cx="25" cy="10" r="1.8" fill="#EF4444"/>
+          <circle cx="32" cy="15" r="1.8" fill="#3B82F6"/>
+          <circle cx="39" cy="10" r="1.8" fill="#10B981"/>
+          <!-- キラキラ大吉EYE -->
+          <circle cx="27" cy="27" r="2.8" fill="#78350F"/>
+          <circle cx="37" cy="27" r="2.8" fill="#78350F"/>
+          <polygon points="26,25 28,25 27,24" fill="#FFFFFF"/>
+          <polygon points="36,25 38,25 37,24" fill="#FFFFFF"/>
+          <path d="M29 32 L35 32 L32 36 Z" fill="#EA580C"/>
+          <ellipse cx="21" cy="33" rx="2.5" ry="1.5" fill="#F472B6"/>
+          <ellipse cx="43" cy="33" rx="2.5" ry="1.5" fill="#F472B6"/>
+          <!-- 魔法のステッキ -->
+          <line x1="42" y1="46" x2="52" y2="30" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round"/>
+          <polygon points="52,26 54,30 58,30 55,33 56,37 52,34 48,37 49,33 46,30 50,30" fill="#FDE047" stroke="#B45309" stroke-width="0.8"/>
+          <!-- 手足 -->
+          <ellipse cx="20" cy="42" rx="3.5" ry="5" fill="#D97706" transform="rotate(25 20 42)"/>
+          <ellipse cx="26" cy="57" rx="4" ry="2" fill="#EA580C"/>
+          <ellipse cx="38" cy="57" rx="4" ry="2" fill="#EA580C"/>
+        </svg>
+      `
+    };
+
+    let currentMascotVariantIdx = 0;
+    let currentSpeechSubIdx = 0;
+    let isGodModeActive = false;
+    let tapCounter = 0;
+
+    // ★星やキラキラが弾け飛ぶパーティクル放出関数
+    function launchSparkles(targetEl) {
+      if (!targetEl) return;
+      const rect = targetEl.getBoundingClientRect();
+      const symbols = ['⭐', '✨', '🌟', '🎉', '💫', '👑', '💎'];
+      
+      for (let i = 0; i < 14; i++) {
+        const p = document.createElement('span');
+        p.className = 'sparkle-particle';
+        p.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+        
+        const dx = (Math.random() - 0.5) * 160 + 'px';
+        const dy = (Math.random() - 0.7) * 150 + 'px';
+        const rot = (Math.random() * 360 - 180) + 'deg';
+        
+        p.style.setProperty('--dx', dx);
+        p.style.setProperty('--dy', dy);
+        p.style.setProperty('--rot', rot);
+        p.style.fontSize = Math.floor(Math.random() * 12 + 14) + 'px';
+        p.style.left = '45%';
+        p.style.top = '40%';
+        
+        targetEl.appendChild(p);
+        setTimeout(() => p.remove(), 850);
+      }
+    }
+
+    function renderCurrentMascot(isJackpot = false) {
+      const v = isJackpot ? GOD_MASCOT_VARIANT : MASCOT_VARIANTS[currentMascotVariantIdx];
+      const card = document.getElementById('mascot-card');
+      const svgWrap = document.getElementById('mascot-svg-wrap');
+      const badgeEl = document.getElementById('mascot-mode-badge');
+      const roleEl = document.getElementById('mascot-role-label');
+      const speechEl = document.getElementById('mascot-speech');
+
+      if (card) {
+        if (isJackpot) {
+          card.classList.add('jackpot-active');
+        } else {
+          card.classList.remove('jackpot-active');
+        }
+      }
+
+      if (svgWrap) svgWrap.innerHTML = v.svg;
+      if (badgeEl) {
+        badgeEl.innerText = v.badge;
+        badgeEl.className = isJackpot 
+          ? 'absolute -bottom-1 -right-1 text-[8px] font-black bg-amber-500 text-amber-950 px-1.5 py-0.2 rounded-full shadow-md border border-white animate-pulse'
+          : 'absolute -bottom-1 -right-1 text-[8px] font-black bg-indigo-600 text-white px-1 rounded-full shadow-xs border border-white';
+      }
+      if (roleEl) {
+        roleEl.innerText = v.role;
+        roleEl.className = isJackpot
+          ? 'text-[9px] font-black bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300'
+          : 'text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded-full';
+      }
+      if (speechEl) {
+        speechEl.innerText = v.speech[currentSpeechSubIdx % v.speech.length];
+      }
+    }
 
     function pokeMascot() {
+      tapCounter++;
+
+      // ★約2.5%（約40回に1回程度）の真の超激レア確率に調整！連打した人向けの天井（45回）付き
+      const isJackpotHit = !isGodModeActive && (Math.random() < 0.025 || tapCounter % 45 === 0);
+
       const avatar = document.getElementById('mascot-avatar');
-      const speech = document.getElementById('mascot-speech');
+      const card = document.getElementById('mascot-card');
+
+      if (isJackpotHit) {
+        // 大当たり発動！
+        isGodModeActive = true;
+        playMascotSound('jackpot');
+        launchSparkles(card);
+
+        if (avatar) {
+          avatar.classList.remove('animate-mascot-jump', 'animate-mascot-wiggle');
+          void avatar.offsetWidth;
+          avatar.classList.add('animate-mascot-jump');
+        }
+
+        currentSpeechSubIdx = Math.floor(Math.random() * GOD_MASCOT_VARIANT.speech.length);
+        renderCurrentMascot(true);
+        showNotice('🎰 大当たり！！ 黄金のゴッドペン太（SSR）が降臨しました！✨');
+        return;
+      }
+
+      // 通常または大当たり解除時
+      isGodModeActive = false;
+      const v = MASCOT_VARIANTS[currentMascotVariantIdx];
+      playMascotSound(v.sound);
+
       if (avatar) {
-        avatar.classList.remove('animate-mascot-jump');
+        avatar.classList.remove('animate-mascot-jump', 'animate-mascot-wiggle');
         void avatar.offsetWidth;
         avatar.classList.add('animate-mascot-jump');
       }
 
+      currentSpeechSubIdx++;
+      if (currentSpeechSubIdx >= v.speech.length) {
+        currentSpeechSubIdx = 0;
+        currentMascotVariantIdx = (currentMascotVariantIdx + 1) % MASCOT_VARIANTS.length;
+      }
+
+      const speech = document.getElementById('mascot-speech');
       if (speech) {
         speech.style.opacity = '0';
         setTimeout(() => {
-          mascotMsgIdx = (mascotMsgIdx + 1) % MASCOT_MESSAGES.length;
-          speech.innerText = MASCOT_MESSAGES[mascotMsgIdx];
+          renderCurrentMascot(false);
           speech.style.opacity = '1';
-        }, 120);
+        }, 100);
+      } else {
+        renderCurrentMascot(false);
       }
     }
+
+    // 初期化時にペン太を描画
+    const origInitApp = initApp;
+    initApp = function() {
+      origInitApp();
+      renderCurrentMascot();
+    };
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
