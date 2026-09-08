@@ -98,7 +98,7 @@
             <h1 class="font-extrabold text-slate-900 text-xs sm:text-base leading-tight truncate">コーチ出勤可能コマ</h1>
             <span id="sync-badge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
               <span id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span id="sync-text">同期中</span>
+              <span id="sync-text">クラウド同期中</span>
             </span>
           </div>
         </div>
@@ -211,7 +211,7 @@
       <!-- 【サイドバー】スマホで見た時は「３番目（order-2）」、PCでは「左側（md:order-1）」 -->
       <aside class="order-2 md:order-1 w-full md:w-64 lg:w-72 flex flex-col gap-2.5 shrink-0">
         
-        <!-- カード0: ★ ペン太が左サイドバー最上部にすっきり復帰！ -->
+        <!-- カード0: ペン太が左サイドバー最上部に配置 -->
         <div id="mascot-single-card" onclick="pokeMascot()" class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-indigo-100/80 flex items-center gap-2.5 cursor-pointer select-none transition-all group relative hover:border-indigo-300" title="タップしてペン太をつつくとジャンプ＆セリフが変わるよ！">
           <!-- ペン太のアバター -->
           <div id="mascot-avatar-box" class="relative shrink-0 w-9 h-9 sm:w-10 sm:h-10 transition-transform">
@@ -493,7 +493,11 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
     const MIN_YEAR = 2026, MIN_MONTH = 8;
     const MAX_YEAR = 2027, MAX_MONTH = 0;
     const ADMIN_PASS = 'kyotocenter';
@@ -515,13 +519,123 @@
     let shiftData = {};
     let closedDays = [];
 
+    // クラウド保存用インスタンス
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'coach-shift-app-kyoto';
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let isCloudInitialized = false;
     let eventSource = null;
+
+    async function initCloudStorage() {
+      if (typeof __firebase_config === 'undefined') {
+        // クラウド設定が存在しない場合のフォールバック
+        console.warn("クラウド接続設定が見つからないため、中継モードで起動します。");
+        initSSE();
+        fetchRemoteData(false);
+        return;
+      }
+
+      try {
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        setSyncBadgeState('reconnecting', '認証中...');
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        isCloudInitialized = true;
+        setSyncBadgeState('connected', 'クラウド保存 有効');
+        subscribeToCloudSchedule();
+      } catch (err) {
+        console.error("Cloud storage init error:", err);
+        setSyncBadgeState('reconnecting', '接続待機中');
+        // バックアップ接続
+        initSSE();
+        fetchRemoteData(false);
+      }
+    }
+
+    function subscribeToCloudSchedule() {
+      if (!currentUser || !db) return;
+
+      // RULE 1: /artifacts/{appId}/public/data/{collectionName}
+      const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', 'currentSchedule');
+
+      onSnapshot(scheduleDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          let remoteShiftData = {};
+          try {
+            remoteShiftData = typeof data.shiftData === 'string' ? JSON.parse(data.shiftData) : (data.shiftData || {});
+          } catch(e) {
+            console.warn("Parse shiftData error:", e);
+          }
+
+          applyRemotePayload({
+            shiftData: remoteShiftData,
+            coaches: data.coaches || coaches,
+            closedDays: data.closedDays || closedDays,
+            timestamp: data.updatedAt
+          });
+          updateSyncStatusUI();
+        } else {
+          // 初回作成
+          console.log("初回初期データをクラウドに作成中...");
+          broadcastData();
+        }
+      }, (err) => {
+        console.error("Firestore onSnapshot error:", err);
+        setSyncBadgeState('reconnecting', '再同期待機');
+      });
+    }
 
     async function fetchRemoteData(isManual = false) {
       if (isManual) {
         const icon = document.getElementById('reload-icon');
         if (icon) icon.classList.add('animate-spin');
       }
+
+      if (isCloudInitialized && currentUser && db) {
+        try {
+          const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', 'currentSchedule');
+          const snap = await getDoc(scheduleDocRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            let remoteShiftData = {};
+            try {
+              remoteShiftData = typeof data.shiftData === 'string' ? JSON.parse(data.shiftData) : (data.shiftData || {});
+            } catch(e) {}
+            applyRemotePayload({
+              shiftData: remoteShiftData,
+              coaches: data.coaches || coaches,
+              closedDays: data.closedDays || closedDays,
+              timestamp: data.updatedAt
+            });
+          }
+        } catch (e) {
+          console.error("Manual fetch cloud error:", e);
+        } finally {
+          updateSyncStatusUI();
+          if (isManual) {
+            const icon = document.getElementById('reload-icon');
+            if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 400);
+            showNotice('クラウドから最新データを取得しました');
+          }
+        }
+        return;
+      }
+
+      // フォールバック中継モード
       try {
         const res = await fetch(`https://ntfy.sh/${SYNC_CHANNEL}/json?poll=1`, { cache: 'no-store' });
         if (res.ok) {
@@ -602,6 +716,25 @@
       if (currentView === 'matrix') renderMatrix();
       updateSyncStatusUI();
 
+      if (isCloudInitialized && currentUser && db) {
+        try {
+          const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', 'currentSchedule');
+          await setDoc(scheduleDocRef, {
+            shiftData: JSON.stringify(shiftData),
+            coaches: coaches,
+            closedDays: closedDays,
+            updatedAt: Date.now(),
+            updatedBy: activeCoach || 'system'
+          });
+          updateSyncStatusUI();
+        } catch (err) {
+          console.error("Cloud save failed:", err);
+          setSyncBadgeState('reconnecting', '保存エラー');
+        }
+        return;
+      }
+
+      // フォールバック中継保存
       const payload = {
         shiftData,
         coaches,
@@ -623,7 +756,7 @@
     function updateSyncStatusUI() {
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-      setSyncBadgeState('connected', `同期完了 ${timeStr}`);
+      setSyncBadgeState('connected', `クラウド保存済 ${timeStr}`);
     }
 
     function setSyncBadgeState(state, text = '') {
@@ -635,11 +768,11 @@
       if (state === 'connected') {
         badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200';
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-        label.innerText = text || '同期完了';
+        label.innerText = text || 'クラウド保存済';
       } else {
         badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-200';
         dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
-        label.innerText = '接続待機中...';
+        label.innerText = text || '接続待機中...';
       }
     }
 
@@ -656,7 +789,7 @@
       renderCalendar();
       setupModalOverlayClick();
 
-      // ★ アクセス時（リロード時）に衣装バージョンをランダム決定（約2.5%で黄金の大当たり）
+      // アクセス時（リロード時）に衣装バージョンをランダム決定（約2.5%で黄金の大当たり）
       if (Math.random() < 0.025) {
         isGodModeActive = true;
         currentSpeechSubIdx = Math.floor(Math.random() * GOD_MASCOT_VARIANT.speech.length);
@@ -668,8 +801,7 @@
         renderCurrentMascot(false);
       }
 
-      fetchRemoteData(false);
-      initSSE();
+      initCloudStorage();
     }
 
     function setupModalOverlayClick() {
@@ -2010,7 +2142,6 @@
       }
     }
 
-    // クリック時：衣装は変わらず、その姿のままジャンプしてセリフだけ切り替え
     function pokeMascot() {
       const v = isGodModeActive ? GOD_MASCOT_VARIANT : MASCOT_VARIANTS[currentMascotVariantIdx];
 
@@ -2038,6 +2169,37 @@
         }, 80);
       }
     }
+
+    Object.assign(window, {
+      changeMonth,
+      setMonthTarget,
+      openModal,
+      closeModal,
+      fetchRemoteData,
+      openBulkModal,
+      handleQuickAddClick,
+      switchMainView,
+      pokeMascot,
+      toggleMascotSound,
+      toggleAllFilters,
+      handleFilterCheckboxChange,
+      handleShiftModalCoachSelect,
+      toggleCurrentDateHoliday,
+      switchBulkTab,
+      handleBulkCoachSelect,
+      setBulkShiftScope,
+      executeBulkAction,
+      setAllSundaysHoliday,
+      executeBulkHolidayAction,
+      handleAdminPassKeydown,
+      verifyAdminPassword,
+      switchAdminTab,
+      handleNewCoachKeydown,
+      addNewCoach,
+      removeCoach,
+      setActiveCoach,
+      togglePeriod
+    });
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
