@@ -503,7 +503,7 @@
     const ADMIN_PASS = 'kyotocenter';
     const PERIODS = [2, 3, 4, 5, 6];
     const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
-    const SYNC_CHANNEL = 'coach_shift_kyoto_live_2026';
+    const SYNC_CHANNEL = 'coach_shift_suwa_kyoto_2026';
 
     let currentYear = 2026;
     let currentMonth = 8;
@@ -518,6 +518,7 @@
     let visibleCoaches = ['諏訪', '佐藤', '鈴木', '高橋', '田中'];
     let shiftData = {};
     let closedDays = [];
+    let lastSyncTimestamp = 0;
 
     // クラウド保存用インスタンス
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'coach-shift-app-kyoto';
@@ -527,10 +528,107 @@
     let isCloudInitialized = false;
     let eventSource = null;
 
+    // データを極小サイズ（4KB制限を大幅に下回る数百バイト）に圧縮・変換
+    function packState() {
+      const coachMap = {};
+      coaches.forEach((c, idx) => { coachMap[c] = idx; });
+      
+      const sList = [];
+      for (const [date, cMap] of Object.entries(shiftData)) {
+        const dShort = date.replace(/-/g, '').slice(2); // "2026-09-01" -> "260901"
+        for (const [cName, pList] of Object.entries(cMap)) {
+          if (Array.isArray(pList) && pList.length > 0 && coachMap[cName] !== undefined) {
+            sList.push(`${dShort}_${coachMap[cName]}_${pList.join('')}`);
+          }
+        }
+      }
+      
+      const hList = closedDays.map(d => d.replace(/-/g, '').slice(2));
+      
+      return {
+        v: 2,
+        c: coaches,
+        h: hList,
+        s: sList,
+        t: Date.now()
+      };
+    }
+
+    function unpackState(packed) {
+      if (!packed) return null;
+      if (packed.shiftData) {
+        return {
+          shiftData: packed.shiftData,
+          coaches: packed.coaches || coaches,
+          closedDays: packed.closedDays || closedDays,
+          timestamp: packed.timestamp || Date.now()
+        };
+      }
+      
+      const cList = (packed.c && packed.c.length > 0) ? packed.c : coaches;
+      const newClosedDays = (packed.h || []).map(d => `20${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4, 6)}`);
+      const newShiftData = {};
+      
+      (packed.s || []).forEach(entry => {
+        const parts = entry.split('_');
+        if (parts.length === 3) {
+          const dateStr = `20${parts[0].slice(0, 2)}-${parts[0].slice(2, 4)}-${parts[0].slice(4, 6)}`;
+          const cIdx = parseInt(parts[1], 10);
+          const coachName = cList[cIdx];
+          if (coachName) {
+            if (!newShiftData[dateStr]) newShiftData[dateStr] = {};
+            newShiftData[dateStr][coachName] = parts[2].split('').map(Number);
+          }
+        }
+      });
+      
+      return {
+        shiftData: newShiftData,
+        coaches: cList,
+        closedDays: newClosedDays,
+        timestamp: packed.t || Date.now()
+      };
+    }
+
+    async function compressPayload(str) {
+      if (typeof CompressionStream !== 'undefined') {
+        try {
+          const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('deflate'));
+          const buffer = await new Response(stream).arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          return 'Z:' + btoa(binary);
+        } catch(e) {
+          return str;
+        }
+      }
+      return str;
+    }
+
+    async function decompressPayload(str) {
+      if (typeof str === 'string' && str.startsWith('Z:')) {
+        try {
+          const binary = atob(str.slice(2));
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+          return await new Response(stream).text();
+        } catch(e) {
+          return null;
+        }
+      }
+      return str;
+    }
+
     async function initCloudStorage() {
       if (typeof __firebase_config === 'undefined') {
-        // クラウド設定が存在しない場合のフォールバック
-        console.warn("クラウド接続設定が見つからないため、中継モードで起動します。");
+        // GitHub Pages 等での独立動作モード
+        setSyncBadgeState('connected', 'クラウド同期 準備完了');
         initSSE();
         fetchRemoteData(false);
         return;
@@ -558,8 +656,7 @@
         subscribeToCloudSchedule();
       } catch (err) {
         console.error("Cloud storage init error:", err);
-        setSyncBadgeState('reconnecting', '接続待機中');
-        // バックアップ接続
+        setSyncBadgeState('reconnecting', '同期接続中...');
         initSSE();
         fetchRemoteData(false);
       }
@@ -568,7 +665,6 @@
     function subscribeToCloudSchedule() {
       if (!currentUser || !db) return;
 
-      // RULE 1: /artifacts/{appId}/public/data/{collectionName}
       const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', 'currentSchedule');
 
       onSnapshot(scheduleDocRef, (docSnap) => {
@@ -589,14 +685,32 @@
           });
           updateSyncStatusUI();
         } else {
-          // 初回作成
-          console.log("初回初期データをクラウドに作成中...");
           broadcastData();
         }
       }, (err) => {
         console.error("Firestore onSnapshot error:", err);
         setSyncBadgeState('reconnecting', '再同期待機');
       });
+    }
+
+    async function parseAndApplyMessage(rawMsg) {
+      if (!rawMsg) return false;
+      try {
+        const text = await decompressPayload(rawMsg);
+        if (!text) return false;
+        const parsed = JSON.parse(text);
+        const unpacked = unpackState(parsed);
+        if (unpacked && unpacked.timestamp) {
+          if (unpacked.timestamp >= lastSyncTimestamp) {
+            lastSyncTimestamp = unpacked.timestamp;
+            applyRemotePayload(unpacked);
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn("Parse message error:", e);
+      }
+      return false;
     }
 
     async function fetchRemoteData(isManual = false) {
@@ -635,57 +749,72 @@
         return;
       }
 
-      // フォールバック中継モード
+      // GitHub Pages等での高速ポーリング同期
       try {
         const res = await fetch(`https://ntfy.sh/${SYNC_CHANNEL}/json?poll=1`, { cache: 'no-store' });
         if (res.ok) {
           const text = await res.text();
           const lines = text.trim().split('\n');
+          let applied = false;
           for (let i = lines.length - 1; i >= 0; i--) {
+            if (!lines[i].trim()) continue;
             try {
               const msgObj = JSON.parse(lines[i]);
-              if (msgObj.message) {
-                const payload = JSON.parse(msgObj.message);
-                if (payload && payload.timestamp) {
-                  applyRemotePayload(payload);
+              if (msgObj.event === 'message' && msgObj.message) {
+                const ok = await parseAndApplyMessage(msgObj.message);
+                if (ok) {
+                  applied = true;
                   break;
                 }
               }
             } catch(e) {}
           }
+          if (applied) {
+            updateSyncStatusUI();
+            if (isManual) showNotice('最新のシフトを同期しました！');
+          } else {
+            updateSyncStatusUI();
+            if (isManual) showNotice('最新データを確認しました');
+          }
         }
       } catch (err) {
         console.warn('Initial data fetch failed', err);
       } finally {
-        updateSyncStatusUI();
         if (isManual) {
           const icon = document.getElementById('reload-icon');
           if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 400);
-          showNotice('最新データを読み込みました');
         }
       }
     }
 
     function initSSE() {
-      if (eventSource) eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
       try {
         eventSource = new EventSource(`https://ntfy.sh/${SYNC_CHANNEL}/sse`);
-        eventSource.onmessage = (event) => {
+        eventSource.onopen = () => {
+          setSyncBadgeState('connected', 'リアルタイム同期中');
+        };
+        eventSource.onmessage = async (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data && data.message) {
-              const payload = JSON.parse(data.message);
-              applyRemotePayload(payload);
-              updateSyncStatusUI();
+            if (data && data.event === 'message' && data.message) {
+              const ok = await parseAndApplyMessage(data.message);
+              if (ok) {
+                updateSyncStatusUI();
+                showNotice('他コーチの入力が反映されました！✨');
+              }
             }
           } catch(e) {}
         };
         eventSource.onerror = () => {
-          setSyncBadgeState('reconnecting');
-          setTimeout(initSSE, 4000);
+          // ブラウザ標準の自動再接続に任せ、接続の多重生成を防ぐ
+          setSyncBadgeState('reconnecting', '同期接続中...');
         };
       } catch (e) {
-        setSyncBadgeState('reconnecting');
+        setSyncBadgeState('reconnecting', '同期待機中');
       }
     }
 
@@ -714,7 +843,6 @@
     async function broadcastData() {
       renderCalendar();
       if (currentView === 'matrix') renderMatrix();
-      updateSyncStatusUI();
 
       if (isCloudInitialized && currentUser && db) {
         try {
@@ -734,29 +862,52 @@
         return;
       }
 
-      // フォールバック中継保存
-      const payload = {
-        shiftData,
-        coaches,
-        closedDays,
-        timestamp: Date.now()
-      };
+      // データを超軽量化して確実に送信
+      const packed = packState();
+      lastSyncTimestamp = packed.t;
+      const jsonStr = JSON.stringify(packed);
+      const payloadToSend = await compressPayload(jsonStr);
 
       try {
-        await fetch(`https://ntfy.sh/${SYNC_CHANNEL}`, {
+        const response = await fetch(`https://ntfy.sh/${SYNC_CHANNEL}`, {
           method: 'POST',
-          headers: { 'Title': 'shift-update', 'Tags': 'calendar' },
-          body: JSON.stringify(payload)
+          headers: {
+            'Title': 'shift-update',
+            'Tags': 'calendar',
+            'Content-Type': 'text/plain; charset=utf-8'
+          },
+          body: payloadToSend
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        updateSyncStatusUI();
       } catch (err) {
         console.warn('Broadcast failed', err);
+        setSyncBadgeState('reconnecting', '再接続中...');
       }
     }
+
+    // スマホ画面復帰時やタブ切り替え時に即座に自動再同期
+    window.addEventListener('focus', () => {
+      if (!isCloudInitialized) fetchRemoteData(false);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !isCloudInitialized) {
+        fetchRemoteData(false);
+      }
+    });
+    setInterval(() => {
+      if (!isCloudInitialized && document.visibilityState === 'visible') {
+        fetchRemoteData(false);
+      }
+    }, 25000);
 
     function updateSyncStatusUI() {
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-      setSyncBadgeState('connected', `クラウド保存済 ${timeStr}`);
+      setSyncBadgeState('connected', `同期完了 ${timeStr}`);
     }
 
     function setSyncBadgeState(state, text = '') {
@@ -766,12 +917,12 @@
       if (!badge || !dot || !label) return;
 
       if (state === 'connected') {
-        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200';
-        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-        label.innerText = text || 'クラウド保存済';
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse';
+        label.innerText = text || '同期完了';
       } else {
-        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-200';
-        dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse';
         label.innerText = text || '接続待機中...';
       }
     }
