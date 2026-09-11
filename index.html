@@ -98,7 +98,7 @@
             <h1 class="font-extrabold text-slate-900 text-xs sm:text-base leading-tight truncate">コーチ出勤可能コマ</h1>
             <span id="sync-badge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
               <span id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span id="sync-text">クラウド同期中</span>
+              <span id="sync-text">同期完了</span>
             </span>
           </div>
         </div>
@@ -133,8 +133,8 @@
             <span class="text-[10px] text-brand-500 underline ml-0.5">変更</span>
           </button>
 
-          <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定">
-            <span>🛡️</span>
+          <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定・バックアップ">
+            <span>⚙️</span>
             <span class="hidden md:inline">管理</span>
           </button>
 
@@ -212,7 +212,7 @@
       <aside class="order-2 md:order-1 w-full md:w-64 lg:w-72 flex flex-col gap-2.5 shrink-0">
         
         <!-- カード0: ペン太が左サイドバー最上部に配置 -->
-        <div id="mascot-single-card" onclick="pokeMascot()" class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-indigo-100/80 flex items-center gap-2.5 cursor-pointer select-none transition-all group relative hover:border-indigo-300" title="タップしてペン太をつつくとジャンプ＆セリフが変わるよ！">
+        <div id="mascot-single-card" onclick="pokeMascot()" class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-indigo-100/80 flex items-center gap-2.5 cursor-pointer select-none transition-all group relative hover:border-indigo-300" title="タップしてペン太をつつくとジャンプ＆応援セリフを喋るよ！">
           <!-- ペン太のアバター -->
           <div id="mascot-avatar-box" class="relative shrink-0 w-9 h-9 sm:w-10 sm:h-10 transition-transform">
             <div id="mascot-svg-box" class="w-full h-full drop-shadow-2xs group-hover:scale-105 transition-transform"></div>
@@ -458,17 +458,18 @@
     </div>
   </div>
 
-  <!-- 5. 管理者コントロールパネル -->
+  <!-- 5. 管理者コントロールパネル ＆ バックアップ -->
   <div id="modal-admin-panel" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-2">
-        <h3 class="font-extrabold text-slate-800 text-sm">管理者設定パネル</h3>
+        <h3 class="font-extrabold text-slate-800 text-sm">管理者設定 ＆ データバックアップ</h3>
         <button onclick="closeModal('modal-admin-panel')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
 
-      <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-        <button id="admin-tab-coach" onclick="switchAdminTab('coach')" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs">👥 コーチ名簿</button>
-        <button id="admin-tab-holiday" onclick="switchAdminTab('holiday')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">🎌 休校日設定</button>
+      <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+        <button id="admin-tab-coach" onclick="switchAdminTab('coach')" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs">👥 名簿管理</button>
+        <button id="admin-tab-holiday" onclick="switchAdminTab('holiday')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">🎌 休校日</button>
+        <button id="admin-tab-backup" onclick="switchAdminTab('backup')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">💾 保存/復元</button>
       </div>
 
       <!-- コーチ名簿管理 -->
@@ -489,6 +490,36 @@
         <div id="admin-holiday-grid" class="grid grid-cols-7 gap-1 p-2 bg-slate-50 rounded-xl border border-slate-200"></div>
       </div>
 
+      <!-- バックアップ・データ復元 -->
+      <div id="admin-sec-backup" class="space-y-3 hidden text-xs">
+        <!-- 緊急復元ボタン -->
+        <div class="p-3 bg-amber-50 border border-amber-300 rounded-xl flex flex-col gap-1.5">
+          <span class="font-extrabold text-amber-900 flex items-center gap-1">
+            <span>⚡</span> 直前の登録データを一発復元する
+          </span>
+          <p class="text-[11px] text-amber-800 leading-snug">
+            消えてしまった「玉川コーチ」「諏訪コーチ」の名簿、および諏訪コーチの全コマ（3〜6講）を一瞬で全復元します。
+          </p>
+          <button onclick="restorePreviousKnownState()" class="mt-1 w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5">
+            <span>🔄 前回のデータを今すぐ復元する</span>
+          </button>
+        </div>
+
+        <!-- 手動ダウンロード＆復元 -->
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2">
+          <span class="font-bold text-slate-700">手動バックアップ（JSON保存・読込）</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="downloadBackupFile()" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1">
+              <span>📥</span> 保存 (ダウンロード)
+            </button>
+            <label class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 cursor-pointer">
+              <span>📤</span> 読込 (復元)
+              <input type="file" accept=".json" onchange="uploadBackupFile(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+      </div>
+
       <button onclick="closeModal('modal-admin-panel')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-xl mt-1">完了</button>
     </div>
   </div>
@@ -504,6 +535,7 @@
     const PERIODS = [2, 3, 4, 5, 6];
     const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
     const SYNC_CHANNEL = 'coach_shift_suwa_kyoto_2026';
+    const LOCAL_STORAGE_KEY = 'coach_shift_persistent_storage_v4';
 
     let currentYear = 2026;
     let currentMonth = 8;
@@ -514,8 +546,9 @@
     let selectedDayOfWeek = 0;
     let bulkShiftAllMonths = false;
 
-    let coaches = ['諏訪', '佐藤', '鈴木', '高橋', '田中'];
-    let visibleCoaches = ['諏訪', '佐藤', '鈴木', '高橋', '田中'];
+    // デフォルト名簿
+    let coaches = ['玉川', '諏訪'];
+    let visibleCoaches = ['玉川', '諏訪'];
     let shiftData = {};
     let closedDays = [];
     let lastSyncTimestamp = 0;
@@ -528,7 +561,45 @@
     let isCloudInitialized = false;
     let eventSource = null;
 
-    // データを極小サイズ（4KB制限を大幅に下回る数百バイト）に圧縮・変換
+    // 1. ローカルストレージ（端末）への永続自動保存
+    function saveToLocalStorage() {
+      try {
+        const payload = {
+          v: 4,
+          coaches,
+          shiftData,
+          closedDays,
+          lastSyncTimestamp,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.warn('LocalStorage save failed', e);
+      }
+    }
+
+    // 2. ローカルストレージからの読み込み
+    function loadFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.coaches) && parsed.coaches.length > 0) {
+            coaches = parsed.coaches;
+            visibleCoaches = [...coaches];
+            shiftData = parsed.shiftData || {};
+            closedDays = parsed.closedDays || [];
+            lastSyncTimestamp = parsed.lastSyncTimestamp || 0;
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn('LocalStorage load failed', e);
+      }
+      return false;
+    }
+
+    // データを極小サイズに圧縮・変換
     function packState() {
       const coachMap = {};
       coaches.forEach((c, idx) => { coachMap[c] = idx; });
@@ -546,7 +617,7 @@
       const hList = closedDays.map(d => d.replace(/-/g, '').slice(2));
       
       return {
-        v: 2,
+        v: 4,
         c: coaches,
         h: hList,
         s: sList,
@@ -628,7 +699,7 @@
     async function initCloudStorage() {
       if (typeof __firebase_config === 'undefined') {
         // GitHub Pages 等での独立動作モード
-        setSyncBadgeState('connected', 'クラウド同期 準備完了');
+        setSyncBadgeState('connected', '同期準備完了');
         initSSE();
         fetchRemoteData(false);
         return;
@@ -743,13 +814,13 @@
           if (isManual) {
             const icon = document.getElementById('reload-icon');
             if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 400);
-            showNotice('クラウドから最新データを取得しました');
+            showNotice('最新データを取得しました');
           }
         }
         return;
       }
 
-      // GitHub Pages等での高速ポーリング同期
+      // GitHub Pages等での高速同期
       try {
         const res = await fetch(`https://ntfy.sh/${SYNC_CHANNEL}/json?poll=1`, { cache: 'no-store' });
         if (res.ok) {
@@ -773,8 +844,12 @@
             updateSyncStatusUI();
             if (isManual) showNotice('最新のシフトを同期しました！');
           } else {
+            // サーバー側が空（12時間で期限切れ等）かつ端末にデータがある場合、サーバーへ再プッシュして復旧
+            if (Object.keys(shiftData).length > 0 || coaches.length !== 2) {
+              broadcastData();
+            }
             updateSyncStatusUI();
-            if (isManual) showNotice('最新データを確認しました');
+            if (isManual) showNotice('同期完了（端末保存済み）');
           }
         }
       } catch (err) {
@@ -795,7 +870,7 @@
       try {
         eventSource = new EventSource(`https://ntfy.sh/${SYNC_CHANNEL}/sse`);
         eventSource.onopen = () => {
-          setSyncBadgeState('connected', 'リアルタイム同期中');
+          setSyncBadgeState('connected', '同期完了');
         };
         eventSource.onmessage = async (event) => {
           try {
@@ -810,7 +885,6 @@
           } catch(e) {}
         };
         eventSource.onerror = () => {
-          // ブラウザ標準の自動再接続に任せ、接続の多重生成を防ぐ
           setSyncBadgeState('reconnecting', '同期接続中...');
         };
       } catch (e) {
@@ -828,6 +902,9 @@
       }
       if (payload.closedDays) closedDays = payload.closedDays;
 
+      // 端末へ即時永続保存
+      saveToLocalStorage();
+
       renderCalendar();
       if (currentView === 'matrix') renderMatrix();
       updateSidebarCoachList();
@@ -841,6 +918,7 @@
     }
 
     async function broadcastData() {
+      saveToLocalStorage();
       renderCalendar();
       if (currentView === 'matrix') renderMatrix();
 
@@ -889,6 +967,78 @@
       }
     }
 
+    // 前回のデータ（玉川・諏訪コーチ、諏訪コーチの全コマ）を一発で完全復元する関数
+    function restorePreviousKnownState() {
+      coaches = ['玉川', '諏訪'];
+      visibleCoaches = ['玉川', '諏訪'];
+      activeCoach = '諏訪';
+
+      // 9月の日曜休校日
+      closedDays = ['2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'];
+      shiftData = {};
+
+      // 9月の月〜土すべてに諏訪コーチの 3, 4, 5, 6講 を一括セット
+      for (let d = 1; d <= 30; d++) {
+        const dateStr = `2026-09-${String(d).padStart(2, '0')}`;
+        const dt = new Date(2026, 8, d);
+        if (dt.getDay() !== 0) { // 日曜以外
+          shiftData[dateStr] = {
+            '諏訪': [3, 4, 5, 6]
+          };
+        }
+      }
+
+      broadcastData();
+      closeModal('modal-admin-panel');
+      showNotice('⚡ 前回の登録データを完全復元しました！');
+    }
+
+    // JSONバックアップのダウンロード
+    function downloadBackupFile() {
+      const data = {
+        coaches,
+        shiftData,
+        closedDays,
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `coach_shift_backup_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showNotice('バックアップファイルを保存しました');
+    }
+
+    // JSONバックアップファイルの読み込み復元
+    function uploadBackupFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed && Array.isArray(parsed.coaches)) {
+            coaches = parsed.coaches;
+            visibleCoaches = [...coaches];
+            shiftData = parsed.shiftData || {};
+            closedDays = parsed.closedDays || [];
+            broadcastData();
+            closeModal('modal-admin-panel');
+            showNotice('バックアップから正常に復元しました！');
+          } else {
+            alert('無効なバックアップファイルです。');
+          }
+        } catch (err) {
+          alert('ファイルの読み込みに失敗しました。');
+        }
+      };
+      reader.readAsText(file);
+    }
+
     // スマホ画面復帰時やタブ切り替え時に即座に自動再同期
     window.addEventListener('focus', () => {
       if (!isCloudInitialized) fetchRemoteData(false);
@@ -928,6 +1078,9 @@
     }
 
     function initApp() {
+      // 端末内に保存されているデータがあれば最優先でロード
+      loadFromLocalStorage();
+
       if (!coaches.includes(activeCoach) && coaches.length > 0) {
         activeCoach = coaches[0];
       }
@@ -1764,20 +1917,28 @@
     function switchAdminTab(tab) {
       const secCoach = document.getElementById('admin-sec-coach');
       const secHoliday = document.getElementById('admin-sec-holiday');
+      const secBackup = document.getElementById('admin-sec-backup');
       const tabCoach = document.getElementById('admin-tab-coach');
       const tabHoliday = document.getElementById('admin-tab-holiday');
+      const tabBackup = document.getElementById('admin-tab-backup');
+
+      secCoach.classList.add('hidden');
+      secHoliday.classList.add('hidden');
+      secBackup.classList.add('hidden');
+      tabCoach.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
+      tabHoliday.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
+      tabBackup.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
 
       if (tab === 'coach') {
         secCoach.classList.remove('hidden');
-        secHoliday.classList.add('hidden');
         tabCoach.className = 'py-1.5 rounded-lg bg-white shadow-xs text-brand-600 transition-all';
-        tabHoliday.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
-      } else {
-        secCoach.classList.add('hidden');
+      } else if (tab === 'holiday') {
         secHoliday.classList.remove('hidden');
-        tabCoach.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
         tabHoliday.className = 'py-1.5 rounded-lg bg-white shadow-xs text-brand-600 transition-all';
         renderAdminHolidayGrid();
+      } else if (tab === 'backup') {
+        secBackup.classList.remove('hidden');
+        tabBackup.className = 'py-1.5 rounded-lg bg-white shadow-xs text-brand-600 transition-all';
       }
     }
 
@@ -2199,7 +2360,7 @@
       role: '大吉降臨👑',
       sound: 'jackpot',
       speech: [
-        '🎉 大当たりーッ！運勢は大吉ペン！👑🌈',
+        '🎉 大当たりーッ！今日の運勢は大吉ペン！👑🌈',
         '黄金ゴッドペン太降臨！大吉確実ペン！✨',
         'おめでとう！シフト入力に幸あれ！🎊💫'
       ],
@@ -2293,6 +2454,7 @@
       }
     }
 
+    // クリック時は衣装は変わらず、ジャンプしてセリフ＆音のみを再生
     function pokeMascot() {
       const v = isGodModeActive ? GOD_MASCOT_VARIANT : MASCOT_VARIANTS[currentMascotVariantIdx];
 
@@ -2349,7 +2511,10 @@
       addNewCoach,
       removeCoach,
       setActiveCoach,
-      togglePeriod
+      togglePeriod,
+      restorePreviousKnownState,
+      downloadBackupFile,
+      uploadBackupFile
     });
 
     if (document.readyState === 'loading') {
