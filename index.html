@@ -85,7 +85,7 @@
   <!-- メインラッパー -->
   <div class="max-w-[1600px] w-full mx-auto p-2 sm:p-4 flex-1 flex flex-col gap-2.5">
     
-    <!-- 1. 上のバー（ヘッダー ＆ 月ナビ ＆ 操作ボタン群）: スマホでも横スクロールが出ないようスッキリ整理 -->
+    <!-- 1. 上のバー（ヘッダー ＆ 月ナビ ＆ 操作ボタン群）: スマホでも横スクロールが出ないよう整理 -->
     <header class="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs border border-slate-200/80 flex flex-col gap-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
         
@@ -125,7 +125,7 @@
           </div>
         </div>
 
-        <!-- 右側：操作者 ＆ 管理 ＆ 更新 ＆ 休校一括 ＆ コマ追加 -->
+        <!-- 右側：操作者 ＆ バックアップ ＆ 管理 ＆ 更新 ＆ 休校一括 ＆ コマ追加 -->
         <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button onclick="openModal('modal-select-coach')" class="flex items-center gap-1 bg-brand-50 hover:bg-brand-100 text-brand-700 px-2 py-1 sm:py-1.5 rounded-xl border border-brand-200/80 text-xs font-bold transition-all">
             <span>👤</span>
@@ -133,7 +133,7 @@
             <span class="text-[10px] text-brand-500 underline ml-0.5">変更</span>
           </button>
 
-          <!-- 💾 バックアップ＆復元ボタンをヘッダーに新設 -->
+          <!-- 💾 バックアップ＆復元ボタン（ヘッダーから即座に利用可能） -->
           <button onclick="openModal('modal-backup-manager')" class="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 px-2 py-1 sm:py-1.5 rounded-xl border border-amber-300 text-xs font-bold transition-all shadow-2xs" title="データの保存・復元・タイムマシン">
             <span>💾</span>
             <span class="hidden sm:inline">バックアップ</span>
@@ -162,7 +162,7 @@
       </div>
     </header>
 
-    <!-- 2. コンテンツ領域（スマホ時は カレンダーが先[order-1]、サイドバーが後[order-2] / PC時は 左サイドバー[md:order-1]、右カレンダー[md:order-2]） -->
+    <!-- 2. コンテンツ領域（スマホ時は 1.カレンダー 2.サイドバー / PC時は 左サイドバー、右カレンダー） -->
     <div class="flex flex-col md:flex-row gap-3 flex-1 min-w-0">
       
       <!-- 【カレンダー表示部】スマホで見た時は「２番目（order-1）」、PCでは「右側（md:order-2）」 -->
@@ -464,13 +464,42 @@
     </div>
   </div>
 
-  <!-- 5. 管理者コントロールパネル ＆ バックアップ -->
+  <!-- 5. 管理者コントロールパネル -->
   <div id="modal-admin-panel" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
     <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-2">
-        <h3 class="font-extrabold text-slate-800 text-sm">管理者設定 ＆ データバックアップ</h3>
+        <h3 class="font-extrabold text-slate-800 text-sm">管理者設定 ＆ コントロール</h3>
         <button onclick="closeModal('modal-admin-panel')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
+
+      <!-- 管理タブ切り替え -->
+      <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+        <button id="admin-tab-coach" onclick="switchAdminTab('coach')" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs transition-all">👥 コーチ名簿の管理</button>
+        <button id="admin-tab-holiday" onclick="switchAdminTab('holiday')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all">🎌 休校日カレンダー設定</button>
+      </div>
+
+      <!-- コーチ管理セクション -->
+      <div id="admin-sec-coach" class="space-y-3">
+        <div class="flex gap-2">
+          <input type="text" id="new-coach-name" onkeydown="handleNewCoachKeydown(event)" placeholder="追加するコーチ氏名" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <button onclick="addNewCoach()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md shrink-0">追加</button>
+        </div>
+        <label class="text-[11px] font-bold text-slate-500 block">現在のコーチ名簿（削除は慎重に行ってください）</label>
+        <div id="admin-coach-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- 休校日カレンダー設定セクション -->
+      <div id="admin-sec-holiday" class="space-y-3 hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-600">日付をタップして休校日を切替</span>
+          <span id="admin-holiday-month-name" class="text-xs font-extrabold text-brand-600"></span>
+        </div>
+        <div id="admin-holiday-grid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+      </div>
+
+      <button onclick="closeModal('modal-admin-panel')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-xl mt-1">閉じる</button>
+    </div>
+  </div>
 
   <!-- 6. 専用バックアップ＆復元マネージャーモーダル（ヘッダーからすぐ開ける） -->
   <div id="modal-backup-manager" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
@@ -548,6 +577,29 @@
     const SYNC_CHANNEL = 'coach_shift_suwa_kyoto_v2026_safe';
     const LOCAL_STORAGE_KEY = 'coach_shift_persistent_storage_v5';
     const LOCAL_STORAGE_HISTORY_KEY = 'coach_shift_history_snapshots_v5';
+
+    // アプリ基本ステート
+    let currentYear = 2026;
+    let currentMonth = 8; // 0-indexed (8 = 9月)
+    let currentView = 'calendar';
+    let coaches = ['玉川', '諏訪'];
+    let visibleCoaches = ['玉川', '諏訪'];
+    let activeCoach = '諏訪';
+    let closedDays = ['2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'];
+    let shiftData = {};
+    let bulkShiftAllMonths = false;
+    let selectedDateStr = '';
+    let selectedDayNum = 1;
+    let selectedDayOfWeek = 0;
+
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let isCloudInitialized = false;
+    let eventSource = null;
+    let lastSyncTimestamp = 0;
+    const appId = 'coach-shift-suwa-kyoto';
+
     // 1. ローカルストレージ（端末）への永続自動保存 ＆ 履歴スナップショット保持
     function saveToLocalStorage() {
       try {
@@ -570,7 +622,6 @@
           } catch(e) {}
           if (!Array.isArray(history)) history = [];
 
-          // 直近と同じデータでなければ追加
           const now = Date.now();
           history.unshift({
             time: now,
@@ -664,7 +715,6 @@
       return false;
     }
 
-    // データを極小サイズに圧縮・変換
     function packState() {
       const coachMap = {};
       coaches.forEach((c, idx) => { coachMap[c] = idx; });
@@ -763,8 +813,7 @@
 
     async function initCloudStorage() {
       if (typeof __firebase_config === 'undefined') {
-        // GitHub Pages 等での独立動作モード
-        setSyncBadgeState('connected', '同期準備完了');
+        setSyncBadgeState('connected', '同期完了');
         initSSE();
         fetchRemoteData(false);
         return;
@@ -885,7 +934,6 @@
         return;
       }
 
-      // GitHub Pages等での高速同期
       try {
         const res = await fetch(`https://ntfy.sh/${SYNC_CHANNEL}/json?poll=1`, { cache: 'no-store' });
         if (res.ok) {
@@ -909,7 +957,6 @@
             updateSyncStatusUI();
             if (isManual) showNotice('最新のシフトを同期しました！');
           } else {
-            // サーバー側が空（12時間で期限切れ等）かつ端末にデータがある場合、サーバーへ再プッシュして復旧
             if (Object.keys(shiftData).length > 0 || coaches.length !== 2) {
               broadcastData();
             }
@@ -960,13 +1007,10 @@
     function applyRemotePayload(payload) {
       if (!payload) return;
 
-      // 【安全対策ガード】ローカルにシフトデータが存在する状態で、
-      // リモートから「空っぽのデータ」が届いた場合は上書きを絶対に拒否！
       const localCount = countTotalShifts(shiftData);
       const remoteCount = countTotalShifts(payload.shiftData || {});
       if (localCount > 0 && remoteCount === 0) {
         console.warn("Blocked empty remote payload from overwriting valid local data.");
-        // 逆にこちらの正しいデータをサーバーへ再配信して修復する
         broadcastData();
         return;
       }
@@ -979,7 +1023,6 @@
       }
       if (payload.closedDays) closedDays = payload.closedDays;
 
-      // 端末へ即時永続保存
       saveToLocalStorage();
 
       renderCalendar();
@@ -1017,7 +1060,6 @@
         return;
       }
 
-      // データを超軽量化して確実に送信
       const packed = packState();
       lastSyncTimestamp = packed.t;
       const jsonStr = JSON.stringify(packed);
@@ -1044,21 +1086,18 @@
       }
     }
 
-    // 前回のデータ（玉川・諏訪コーチ、諏訪コーチの全コマ）を一発で完全復元する関数
     function restorePreviousKnownState() {
       coaches = ['玉川', '諏訪'];
       visibleCoaches = ['玉川', '諏訪'];
       activeCoach = '諏訪';
 
-      // 9月の日曜休校日
       closedDays = ['2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'];
       shiftData = {};
 
-      // 9月の月〜土すべてに諏訪コーチの 3, 4, 5, 6講 を一括セット
       for (let d = 1; d <= 30; d++) {
         const dateStr = `2026-09-${String(d).padStart(2, '0')}`;
         const dt = new Date(2026, 8, d);
-        if (dt.getDay() !== 0) { // 日曜以外
+        if (dt.getDay() !== 0) {
           shiftData[dateStr] = {
             '諏訪': [3, 4, 5, 6]
           };
@@ -1071,7 +1110,6 @@
       showNotice('⚡ 前回の登録データを完全復元しました！');
     }
 
-    // JSONバックアップのダウンロード
     function downloadBackupFile() {
       const data = {
         coaches,
@@ -1091,7 +1129,6 @@
       showNotice('バックアップファイルを保存しました');
     }
 
-    // JSONバックアップファイルの読み込み復元
     function uploadBackupFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -1105,19 +1142,18 @@
             shiftData = parsed.shiftData || {};
             closedDays = parsed.closedDays || [];
             broadcastData();
-            closeModal('modal-admin-panel');
+            closeModal('modal-backup-manager');
             showNotice('バックアップから正常に復元しました！');
           } else {
-            alert('無効なバックアップファイルです。');
+            showNotice('無効なバックアップファイルです');
           }
         } catch (err) {
-          alert('ファイルの読み込みに失敗しました。');
+          showNotice('ファイルの読み込みに失敗しました');
         }
       };
       reader.readAsText(file);
     }
 
-    // スマホ画面復帰時やタブ切り替え時に即座に自動再同期
     window.addEventListener('focus', () => {
       if (!isCloudInitialized) fetchRemoteData(false);
     });
@@ -1156,7 +1192,6 @@
     }
 
     function initApp() {
-      // 端末内に保存されているデータがあれば最優先でロード
       loadFromLocalStorage();
 
       if (!coaches.includes(activeCoach) && coaches.length > 0) {
@@ -1172,7 +1207,6 @@
       setupModalOverlayClick();
       updateHistoryUI();
 
-      // アクセス時（リロード時）に衣装バージョンをランダム決定（約2.5%で黄金の大当たり）
       if (Math.random() < 0.025) {
         isGodModeActive = true;
         currentSpeechSubIdx = Math.floor(Math.random() * GOD_MASCOT_VARIANT.speech.length);
@@ -1996,17 +2030,13 @@
     function switchAdminTab(tab) {
       const secCoach = document.getElementById('admin-sec-coach');
       const secHoliday = document.getElementById('admin-sec-holiday');
-      const secBackup = document.getElementById('admin-sec-backup');
       const tabCoach = document.getElementById('admin-tab-coach');
       const tabHoliday = document.getElementById('admin-tab-holiday');
-      const tabBackup = document.getElementById('admin-tab-backup');
 
       secCoach.classList.add('hidden');
       secHoliday.classList.add('hidden');
-      secBackup.classList.add('hidden');
       tabCoach.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
       tabHoliday.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
-      tabBackup.className = 'py-1.5 rounded-lg text-slate-600 hover:text-brand-600 transition-all';
 
       if (tab === 'coach') {
         secCoach.classList.remove('hidden');
@@ -2015,9 +2045,6 @@
         secHoliday.classList.remove('hidden');
         tabHoliday.className = 'py-1.5 rounded-lg bg-white shadow-xs text-brand-600 transition-all';
         renderAdminHolidayGrid();
-      } else if (tab === 'backup') {
-        secBackup.classList.remove('hidden');
-        tabBackup.className = 'py-1.5 rounded-lg bg-white shadow-xs text-brand-600 transition-all';
       }
     }
 
@@ -2533,7 +2560,6 @@
       }
     }
 
-    // クリック時は衣装は変わらず、ジャンプしてセリフ＆音のみを再生
     function pokeMascot() {
       const v = isGodModeActive ? GOD_MASCOT_VARIANT : MASCOT_VARIANTS[currentMascotVariantIdx];
 
