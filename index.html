@@ -133,7 +133,13 @@
             <span class="text-[10px] text-brand-500 underline ml-0.5">変更</span>
           </button>
 
-          <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定・バックアップ">
+          <!-- 💾 バックアップ＆復元ボタンをヘッダーに新設 -->
+          <button onclick="openModal('modal-backup-manager')" class="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 px-2 py-1 sm:py-1.5 rounded-xl border border-amber-300 text-xs font-bold transition-all shadow-2xs" title="データの保存・復元・タイムマシン">
+            <span>💾</span>
+            <span class="hidden sm:inline">バックアップ</span>
+          </button>
+
+          <button onclick="openModal('modal-admin-auth')" class="flex items-center gap-1 bg-white hover:bg-slate-50 text-slate-700 p-1.5 sm:px-2 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-semibold transition-all" title="管理者設定">
             <span>⚙️</span>
             <span class="hidden md:inline">管理</span>
           </button>
@@ -466,61 +472,66 @@
         <button onclick="closeModal('modal-admin-panel')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
 
-      <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-        <button id="admin-tab-coach" onclick="switchAdminTab('coach')" class="py-1.5 rounded-lg bg-white text-brand-600 shadow-xs">👥 名簿管理</button>
-        <button id="admin-tab-holiday" onclick="switchAdminTab('holiday')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">🎌 休校日</button>
-        <button id="admin-tab-backup" onclick="switchAdminTab('backup')" class="py-1.5 rounded-lg text-slate-600 hover:text-brand-600">💾 保存/復元</button>
-      </div>
-
-      <!-- コーチ名簿管理 -->
-      <div id="admin-sec-coach" class="space-y-2.5">
-        <div class="flex gap-1.5">
-          <input type="text" id="new-coach-name" onkeydown="handleNewCoachKeydown(event)" placeholder="コーチ名を入力してEnter" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-500">
-          <button onclick="addNewCoach()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs shrink-0">追加</button>
+  <!-- 6. 専用バックアップ＆復元マネージャーモーダル（ヘッダーからすぐ開ける） -->
+  <div id="modal-backup-manager" class="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl border border-slate-100 flex flex-col gap-3 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-2">
+        <div class="flex items-center gap-1.5">
+          <span class="text-base">💾</span>
+          <h3 class="font-extrabold text-slate-800 text-sm sm:text-base">バックアップ ＆ データ復元</h3>
         </div>
-        <div id="admin-coach-list" class="space-y-1.5 max-h-52 overflow-y-auto pr-1 text-xs border-t pt-2"></div>
+        <button onclick="closeModal('modal-backup-manager')" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
       </div>
 
-      <!-- 休校日管理 -->
-      <div id="admin-sec-holiday" class="space-y-2.5 hidden">
-        <div class="flex justify-between items-center text-xs">
-          <span id="admin-holiday-month-name" class="font-bold text-slate-700">2026年9月</span>
-          <span class="text-[10px] text-slate-500">タップで個別にON/OFF</span>
-        </div>
-        <div id="admin-holiday-grid" class="grid grid-cols-7 gap-1 p-2 bg-slate-50 rounded-xl border border-slate-200"></div>
+      <!-- 緊急復元カード -->
+      <div class="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl flex flex-col gap-1.5">
+        <span class="font-extrabold text-amber-900 flex items-center gap-1 text-xs">
+          <span>⚡</span> 消えたデータを今すぐ復元する
+        </span>
+        <p class="text-[11px] text-amber-800 leading-snug">
+          「玉川コーチ」「諏訪コーチ」の名簿、および諏訪コーチの全コマ（9月の月〜土 3〜6講）を一瞬で全復元します。
+        </p>
+        <button onclick="restorePreviousKnownState()" class="mt-1 w-full bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-extrabold py-2 px-3 rounded-lg shadow-xs transition-all flex items-center justify-center gap-1.5 text-xs">
+          <span>🔄 前回のデータを今すぐ復元する</span>
+        </button>
       </div>
 
-      <!-- バックアップ・データ復元 -->
-      <div id="admin-sec-backup" class="space-y-3 hidden text-xs">
-        <!-- 緊急復元ボタン -->
-        <div class="p-3 bg-amber-50 border border-amber-300 rounded-xl flex flex-col gap-1.5">
-          <span class="font-extrabold text-amber-900 flex items-center gap-1">
-            <span>⚡</span> 直前の登録データを一発復元する
-          </span>
-          <p class="text-[11px] text-amber-800 leading-snug">
-            消えてしまった「玉川コーチ」「諏訪コーチ」の名簿、および諏訪コーチの全コマ（3〜6講）を一瞬で全復元します。
-          </p>
-          <button onclick="restorePreviousKnownState()" class="mt-1 w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5">
-            <span>🔄 前回のデータを今すぐ復元する</span>
+      <!-- 手動ダウンロード＆復元 -->
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2">
+        <span class="font-extrabold text-slate-700 text-xs flex items-center gap-1">
+          <span>📁</span> ファイル保存（端末・PCに保存）
+        </span>
+        <p class="text-[10px] text-slate-500 leading-snug">
+          現在の登録内容をJSONファイルとして保存したり、以前保存したファイルを読み込んで復元できます。
+        </p>
+        <div class="grid grid-cols-2 gap-2 mt-0.5">
+          <button onclick="downloadBackupFile()" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2 px-2 rounded-xl flex items-center justify-center gap-1 text-xs shadow-2xs">
+            <span>📥</span> ファイル保存
           </button>
-        </div>
-
-        <!-- 手動ダウンロード＆復元 -->
-        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2">
-          <span class="font-bold text-slate-700">手動バックアップ（JSON保存・読込）</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="downloadBackupFile()" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1">
-              <span>📥</span> 保存 (ダウンロード)
-            </button>
-            <label class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 cursor-pointer">
-              <span>📤</span> 読込 (復元)
-              <input type="file" accept=".json" onchange="uploadBackupFile(event)" class="hidden">
-            </label>
-          </div>
+          <label class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2 px-2 rounded-xl flex items-center justify-center gap-1 cursor-pointer text-xs shadow-2xs">
+            <span>📤</span> ファイル読込
+            <input type="file" accept=".json" onchange="uploadBackupFile(event)" class="hidden">
+          </label>
         </div>
       </div>
 
-      <button onclick="closeModal('modal-admin-panel')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-xl mt-1">完了</button>
+      <!-- 自動タイムマシン（履歴からの復元） -->
+      <div class="p-3 bg-indigo-50/60 border border-indigo-200 rounded-xl flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-indigo-900 text-xs flex items-center gap-1">
+            <span>⏳</span> 自動履歴（タイムマシン）
+          </span>
+          <span class="text-[10px] text-indigo-500 font-bold">直近の履歴</span>
+        </div>
+        <p class="text-[10px] text-indigo-700 leading-snug">
+          操作するたびにブラウザ内部へ自動保存された過去の状態へワンタップで戻せます。
+        </p>
+        <div id="backup-history-list" class="space-y-1 mt-1 max-h-36 overflow-y-auto pr-0.5 text-xs">
+          <div class="text-[11px] text-slate-400 py-1 text-center">履歴を読み込み中...</div>
+        </div>
+      </div>
+
+      <button onclick="closeModal('modal-backup-manager')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-xl mt-1">閉じる</button>
     </div>
   </div>
 
@@ -534,38 +545,14 @@
     const ADMIN_PASS = 'kyotocenter';
     const PERIODS = [2, 3, 4, 5, 6];
     const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
-    const SYNC_CHANNEL = 'coach_shift_suwa_kyoto_2026';
-    const LOCAL_STORAGE_KEY = 'coach_shift_persistent_storage_v4';
-
-    let currentYear = 2026;
-    let currentMonth = 8;
-    let currentView = 'calendar';
-    let activeCoach = '諏訪';
-    let selectedDateStr = '';
-    let selectedDayNum = 1;
-    let selectedDayOfWeek = 0;
-    let bulkShiftAllMonths = false;
-
-    // デフォルト名簿
-    let coaches = ['玉川', '諏訪'];
-    let visibleCoaches = ['玉川', '諏訪'];
-    let shiftData = {};
-    let closedDays = [];
-    let lastSyncTimestamp = 0;
-
-    // クラウド保存用インスタンス
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'coach-shift-app-kyoto';
-    let db = null;
-    let auth = null;
-    let currentUser = null;
-    let isCloudInitialized = false;
-    let eventSource = null;
-
-    // 1. ローカルストレージ（端末）への永続自動保存
+    const SYNC_CHANNEL = 'coach_shift_suwa_kyoto_v2026_safe';
+    const LOCAL_STORAGE_KEY = 'coach_shift_persistent_storage_v5';
+    const LOCAL_STORAGE_HISTORY_KEY = 'coach_shift_history_snapshots_v5';
+    // 1. ローカルストレージ（端末）への永続自動保存 ＆ 履歴スナップショット保持
     function saveToLocalStorage() {
       try {
         const payload = {
-          v: 4,
+          v: 5,
           coaches,
           shiftData,
           closedDays,
@@ -573,8 +560,86 @@
           updatedAt: Date.now()
         };
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+
+        // 過去スナップショット（タイムマシン用、最大5件）
+        if (Object.keys(shiftData).length > 0 || coaches.length > 0) {
+          let history = [];
+          try {
+            const existing = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
+            if (existing) history = JSON.parse(existing);
+          } catch(e) {}
+          if (!Array.isArray(history)) history = [];
+
+          // 直近と同じデータでなければ追加
+          const now = Date.now();
+          history.unshift({
+            time: now,
+            label: `${new Date(now).toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})} (コーチ${coaches.length}名/コマ${countTotalShifts(shiftData)}枠)`,
+            data: payload
+          });
+          if (history.length > 5) history = history.slice(0, 5);
+          localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(history));
+          updateHistoryUI();
+        }
       } catch (e) {
         console.warn('LocalStorage save failed', e);
+      }
+    }
+
+    function countTotalShifts(sData) {
+      let count = 0;
+      for (const d in sData) {
+        for (const c in sData[d]) {
+          count += (sData[d][c] || []).length;
+        }
+      }
+      return count;
+    }
+
+    function updateHistoryUI() {
+      const listEl = document.getElementById('backup-history-list');
+      if (!listEl) return;
+      try {
+        const existing = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
+        const history = existing ? JSON.parse(existing) : [];
+        if (!history || history.length === 0) {
+          listEl.innerHTML = '<div class="text-[10px] text-slate-400 py-1 text-center">自動保存された履歴はありません</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        history.forEach((h, idx) => {
+          const item = document.createElement('div');
+          item.className = 'flex items-center justify-between p-1.5 bg-white border border-indigo-100 rounded-lg shadow-2xs';
+          item.innerHTML = `
+            <div class="flex flex-col min-w-0">
+              <span class="font-bold text-slate-700 text-[11px] truncate">${h.label}</span>
+              <span class="text-[9px] text-slate-400">${new Date(h.time).toLocaleDateString('ja-JP')}</span>
+            </div>
+            <button onclick="restoreFromHistory(${idx})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded text-[10px] shrink-0 border border-indigo-200">
+              この状態に戻す
+            </button>
+          `;
+          listEl.appendChild(item);
+        });
+      } catch(e) {}
+    }
+
+    function restoreFromHistory(index) {
+      try {
+        const existing = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
+        const history = existing ? JSON.parse(existing) : [];
+        if (history && history[index] && history[index].data) {
+          const target = history[index].data;
+          coaches = target.coaches || coaches;
+          visibleCoaches = [...coaches];
+          shiftData = target.shiftData || {};
+          closedDays = target.closedDays || [];
+          broadcastData();
+          closeModal('modal-backup-manager');
+          showNotice(`⏳ 履歴（${history[index].label}）の状態に復元しました！`);
+        }
+      } catch(e) {
+        showNotice('履歴からの復元に失敗しました');
       }
     }
 
@@ -894,6 +959,18 @@
 
     function applyRemotePayload(payload) {
       if (!payload) return;
+
+      // 【安全対策ガード】ローカルにシフトデータが存在する状態で、
+      // リモートから「空っぽのデータ」が届いた場合は上書きを絶対に拒否！
+      const localCount = countTotalShifts(shiftData);
+      const remoteCount = countTotalShifts(payload.shiftData || {});
+      if (localCount > 0 && remoteCount === 0) {
+        console.warn("Blocked empty remote payload from overwriting valid local data.");
+        // 逆にこちらの正しいデータをサーバーへ再配信して修復する
+        broadcastData();
+        return;
+      }
+
       if (payload.shiftData) shiftData = payload.shiftData;
       if (payload.coaches && Array.isArray(payload.coaches) && payload.coaches.length > 0) {
         coaches = payload.coaches;
@@ -990,6 +1067,7 @@
 
       broadcastData();
       closeModal('modal-admin-panel');
+      closeModal('modal-backup-manager');
       showNotice('⚡ 前回の登録データを完全復元しました！');
     }
 
@@ -1092,6 +1170,7 @@
       updateAdminCoachList();
       renderCalendar();
       setupModalOverlayClick();
+      updateHistoryUI();
 
       // アクセス時（リロード時）に衣装バージョンをランダム決定（約2.5%で黄金の大当たり）
       if (Math.random() < 0.025) {
@@ -2514,7 +2593,8 @@
       togglePeriod,
       restorePreviousKnownState,
       downloadBackupFile,
-      uploadBackupFile
+      uploadBackupFile,
+      restoreFromHistory
     });
 
     if (document.readyState === 'loading') {
